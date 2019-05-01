@@ -93,7 +93,7 @@ const botCommands = {
         for(let i = 0; i < mentions.length; i++) {
             const match = mentions[i].match(/[0-9]+/);
             if(!match)
-                return;
+                continue;
             
             const id = match[0];
             message.guild.unban(id, reason);
@@ -121,7 +121,7 @@ const botCommands = {
         for(let i = 0; i < mentions.length; i++) {
             const match = mentions[i].match(/[0-9]+/);
             if(!match)
-                return;
+                continue;
             
             const
                 id = match[0],
