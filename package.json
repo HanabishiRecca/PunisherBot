@@ -1,0 +1,17 @@
+{
+    "name": "punisherbot",
+    "version": "1.0.0",
+    "description": "Punisher Bot",
+    "repository": {},
+    "license": "MIT",
+    "author": "UselessLORD",
+    "contributors": [
+        "Hanabishi"
+    ],
+    "main": "bot.js",
+    "dependencies": {
+        "discord.js": "^11.4.2",
+        "intl": "^1.2.5",
+        "nedb-promise": "^2.0.1"
+    }
+}
