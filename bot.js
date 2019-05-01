@@ -128,9 +128,9 @@ const botCommands = {
                 userInfo = await blacklistDb.findOne({ _id: id });
             
             if(userInfo)
-                message.reply(`пользователь <@${id}> находится в черном списке.\nДата добавления: ${Util.DtString(userInfo.date)}\nПричина: ${userInfo.reason}`);
+                message.channel.send(`**Информация**\nПользователь <@${id}> находится в черном списке.\nДата добавления: ${Util.DtString(userInfo.date)}\nПричина: ${userInfo.reason}`);
             else
-                message.reply(`пользователь <@${id}> не находится в черном списке.`);
+                message.channel.send(`**Информация**\nПользователь <@${id}> не находится в черном списке.`);
         }
     },
     
