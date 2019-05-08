@@ -183,7 +183,7 @@ const botCommands = {
             return;
         
         const count = await blacklistDb.count({});
-        message.channel.send(`**Статистика**\nВсего пользователей в черном списке: ${count}\nПодключено серверов: ${client.guilds.size}`);
+        message.channel.send(`**Статистика**\nПользователей в черном списке: ${count}\nПодключено серверов: ${client.guilds.size}`);
     },
     
     //Ссылка на приглашение бота
@@ -243,11 +243,11 @@ const botCommands = {
     },
     
     //Выдача списка всех подключенных серверов
-    listservers: async (message) => {
+    serverlist: async (message) => {
         if(message.channel.id != config.serviceChannel)
             return;
         
-        let msg = '**Список серверов**\n```css\n';
+        let msg = `**Список серверов**\nВсего ${client.guilds.size}\n\`\`\`css\n`;
         for(const server of client.guilds.values()) {
             const info = await trustedServersDb.findOne({ _id: server.id });
             if(info)
