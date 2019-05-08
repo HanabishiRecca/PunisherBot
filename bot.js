@@ -27,7 +27,9 @@ client.on('reconnecting', console.log);
 client.on('resume', console.log);
 client.on('rateLimit', console.warn);
 
-const blacklistDb = new Database({ filename: './storage/users.db', autoload: true });
+const
+    blacklistDb = new Database({ filename: './storage/users.db', autoload: true }),
+    trustedServersDb = new Database({ filename: './storage/servers.db', autoload: true });
 
 const
     RemoveMentions = str => str.replace(Discord.MessageMentions.USERS_PATTERN, ''),
@@ -40,9 +42,10 @@ const helpText = `**Справка**
 Команды:
 **add** <@user> [reason] - добавить указанных пользователей в черный список с указанием причины.
 **remove** <@user> - убрать указанных пользователей из черного списка.
-**info** <@user> - информация об указанном пользователе.
+**info** <@user> - показать информацию об указанных пользователях.
 **cleanup** <count> - удалить указанное количество последних сообщений на канале. За один раз можно удалить максимум 100 сообщений.
-**stats** - статистика.
+**stats** - показать статистику.
+**link** - показать ссылку на приглашение бота.
 **help** - показать данное справочное сообщение.
 
 Параметры:
@@ -55,6 +58,12 @@ const botCommands = {
     add: async (message) => {
         if(!message.member.hasPermission(Discord.Permissions.FLAGS.BAN_MEMBERS))
             return;
+        
+        const trusted = await trustedServersDb.findOne({ _id: message.guild.id });
+        if(!trusted) {
+            message.reply('данный сервер не может добавлять пользователей в черный список.');
+            return;
+        }
         
         if(!message.mentions.members)
             return;
@@ -95,6 +104,12 @@ const botCommands = {
     remove: async (message) => {
         if(!message.member.hasPermission(Discord.Permissions.FLAGS.BAN_MEMBERS))
             return;
+        
+        const trusted = await trustedServersDb.findOne({ _id: message.guild.id });
+        if(!trusted) {
+            message.reply('данный сервер не может убирать пользователей из черного списка.');
+            return;
+        }
         
         //Реализуем через ручной поиск упоминаний юзеров, так как пользователь может быть не на сервере.
         const mentions = GetMentions(message.content);
@@ -171,6 +186,11 @@ const botCommands = {
         message.channel.send(`**Статистика**\nВсего пользователей в черном списке: ${count}\nПодключено серверов: ${client.guilds.size}`);
     },
     
+    //Ссылка на приглашение бота
+    link: async (message) => {
+        message.reply(`<${await client.generateInvite(523334)}>`);
+    },
+    
     //Справка по боту
     help: async (message) => {
         //Предположительно пока даем получать информацию только модераторам
@@ -180,6 +200,65 @@ const botCommands = {
         message.channel.send(helpText);
     },
     
+    //Суперадминские команды, не показываем в справке, работают только в сервисном чате
+    //Добавление доверенного сервера
+    addserver: async (message) => {
+        if(message.channel.id != config.serviceChannel)
+            return;
+        
+        const server = client.guilds.get(message.content);
+        if(!server) {
+            message.reply('не удалось найти подключенный сервер с указанным идентификатором.');
+            return;
+        }
+        
+        const info = await trustedServersDb.findOne({ _id: server.id });
+        if(info) {
+            message.reply(`сервер **${server.name}** (${server.id}) уже находится в списке доверенных.`);
+            return;
+        }
+        
+        await trustedServersDb.insert({ _id: server.id });
+        message.reply(`сервер **${server.name}** (${server.id}) добавлен в список доверенных.`);
+    },
+    
+    //Удаление доверенного сервера
+    removeserver: async (message) => {
+        if(message.channel.id != config.serviceChannel)
+            return;
+        
+        const info = await trustedServersDb.findOne({ _id: message.content });
+        if(!info) {
+            message.reply(`сервер с указанным идентификатором отсутствует в списке доверенных.`);
+            return;
+        }
+        
+        await trustedServersDb.remove({ _id: message.content });
+        
+        const server = client.guilds.get(message.content);
+        if(server)
+            message.reply(`сервер **${server.name}** (${server.id}) удален из списка доверенных.`);
+        else
+            message.reply(`сервер с идентификатором **${message.content}** удален из списка доверенных.`);
+    },
+    
+    //Выдача списка всех подключенных серверов
+    listservers: async (message) => {
+        if(message.channel.id != config.serviceChannel)
+            return;
+        
+        let msg = '**Список серверов**\n```css\n';
+        for(const server of client.guilds.values()) {
+            const info = await trustedServersDb.findOne({ _id: server.id });
+            if(info)
+                msg += '[Доверенный] ';
+            
+            msg += `${server.name} : ${server.id}\n`;
+        }
+        msg += '```';
+        
+        message.channel.send(msg);
+    },
 };
 
 //Проверка пользователя в черном списке
