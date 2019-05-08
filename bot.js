@@ -66,7 +66,7 @@ const botCommands = {
         
         if(channel) {
             if(!channel.permissionsFor(message.guild.me).has(Discord.Permissions.FLAGS.SEND_MESSAGES)) {
-                message.reply('нет прав для указанного канала!');
+                message.reply('нет прав на размещение сообщений в указанном канале!');
                 return;
             }
             
@@ -303,10 +303,7 @@ const botCommands = {
         let msg = `**Список серверов**\nВсего ${client.guilds.size}\n\`\`\`css\n`;
         for(const server of client.guilds.values()) {
             const info = await serversDb.findOne({ _id: server.id });
-            if(info && info.trusted)
-                msg += '[Доверенный] ';
-            
-            msg += `${server.name} : ${server.id}\n`;
+            msg += `[${(info && info.trusted) ? 'v' : ' '}] | ${server.id} | ${server.name}\n`;
         }
         msg += '```';
         
