@@ -318,6 +318,13 @@ async function NotifyAllServers(thisServerId, userId, mode) {
 
 client.on('guildMemberAdd', CheckBanned);
 
+client.on('guildCreate', async (server) => {
+    client.channels.get(config.serviceChannel).send(`**Подключен новый сервер!**\n${server.name} (${server.id})`);
+});
+client.on('guildDelete', async (server) => {
+    client.channels.get(config.serviceChannel).send(`**Сервер отключен**\n${server.name} (${server.id})`);
+});
+
 client.on('message', async (message) => {
     if(!(message.content && message.member))
         return;
