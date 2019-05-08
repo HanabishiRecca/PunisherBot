@@ -1,3 +1,4 @@
 {
-    "prefix": "b/"
+    "prefix": "b/",
+    "banJoinPeriod": 86400000
 }
