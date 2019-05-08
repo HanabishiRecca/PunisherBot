@@ -234,7 +234,7 @@ client.on('message', async (message) => {
     if(message.author.id == client.user.id)
         return;
     
-    if((message.member.joinedTimestamp > Date.now() - config.banJoinPeriod) && await CheckSpam(message))
+    if((message.member.joinedTimestamp > Date.now() - config.banJoinPeriod) && await CheckBanned(message.member) && await CheckSpam(message))
         return;
     
     if(!message.content.startsWith(config.prefix))
