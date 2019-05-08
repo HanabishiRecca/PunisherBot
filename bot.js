@@ -72,30 +72,48 @@ const botCommands = {
             reason = RemoveMentions(message.content).trim(),
             dt = Date.now();
         
-        //Реализуем через members. Защита от потенциальной возможности добавить людей, не находящихся на данном сервере.
-        for(const target of message.mentions.members.values()) {
-            if(target.id == client.user.id) {
+        //Реализуем через ручной поиск упоминаний юзеров, так как пользователь может быть не на сервере.
+        const mentions = GetMentions(message.content);
+        if(!mentions)
+            return;
+        
+        for(let i = 0; i < mentions.length; i++) {
+            const match = mentions[i].match(/[0-9]+/);
+            if(!match)
+                continue;
+            
+            const usr = await client.fetchUser(match[0], false);
+            if(!usr) {
+                message.reply(`пользователь с идентификатором **${match[0]}** не существует.`);
+                continue;
+            }
+            
+            if(usr.id == client.user.id) {
                 message.reply(':(');
                 continue;
             }
             
             //Не трогаем админсостав
-            if(target.hasPermission(Discord.Permissions.FLAGS.MANAGE_MESSAGES)) {
+            let target;
+            try {
+                target = await message.guild.fetchMember(usr, false);
+            } catch {}
+            if(target && target.hasPermission(Discord.Permissions.FLAGS.MANAGE_MESSAGES)) {
                 message.reply(`нельзя забанить пользователя ${target.toString()}, так как он является представителем администрации сервера.`);
                 continue;
             }
             
-            target.ban({ days: 1, reason: reason });
+            message.guild.ban(usr.id, { days: 1, reason: reason });
             
-            const userInfo = await blacklistDb.findOne({ _id: target.id });
+            const userInfo = await blacklistDb.findOne({ _id: usr.id });
             if(userInfo) {
-                message.reply(`пользователь ${target.toString()} уже находится в черном списке.`);
+                message.reply(`пользователь ${usr.toString()} уже находится в черном списке.`);
             } else {
-                await blacklistDb.insert({ _id: target.id, server: message.guild.id, moder: message.author.id, date: dt, reason: reason });
-                const msg = `Модератор ${message.member.toString()} добавил пользователя ${target.toString()} в черный список.${reason ? `\nПричина: ${reason}` : ''}`;
+                await blacklistDb.insert({ _id: usr.id, server: message.guild.id, moder: message.author.id, date: dt, reason: reason });
+                const msg = `Модератор ${message.member.toString()} добавил пользователя ${usr.toString()} в черный список.${reason ? `\nПричина: ${reason}` : ''}`;
                 message.guild.systemChannel.send(msg);
                 ServiceLog(message.guild, msg);
-                NotifyAllServers(message.guild.id, target.id, true);
+                NotifyAllServers(message.guild.id, usr.id, true);
             }
         }
     },
@@ -129,7 +147,9 @@ const botCommands = {
             
             if(userInfo) {
                 await blacklistDb.remove({ _id: id });
-                await message.guild.unban(id, reason);
+                try {
+                    await message.guild.unban(id, reason);
+                } catch {}
                 const msg = `Модератор ${message.member.toString()} убрал пользователя <@${id}> из черного списка.${reason ? `\nПричина: ${reason}` : ''}`;
                 message.guild.systemChannel.send(msg);
                 ServiceLog(message.guild, msg);
@@ -302,11 +322,22 @@ async function ServiceLog(srcServer, msg) {
 
 async function NotifyServer(server, userId, mode) {
     if(mode) {
+        let member;
+        try {
+            member = await server.fetchMember(userId, false);
+        } catch {}
+        if(member && member.hasPermission(Discord.Permissions.FLAGS.MANAGE_MESSAGES)) {
+            server.systemChannel.send(`Попытка добавления в черный список представителя администрации ${member.toString()} на другом сервере. Рекомендуется срочно обратиться к администрации бота!`);
+            ServiceLog(server, `Представитель администрации ${member.toString()} добавлен в черный список. Рекомендуется немедленно разобраться!`);
+            return;
+        }
         await server.ban(userId, { days: 1, reason: 'Автоматический бан' });
         server.systemChannel.send(`Пользователь <@${userId}> был добавлен в черный список на другом сервере. Выдан автоматический бан.`);
     } else {
-        await server.unban(userId);
-        server.systemChannel.send(`Пользователь <@${userId}> был убран из черного списка на другом сервере. Бан снят автоматически.`);
+        try {
+            await server.unban(userId);
+            server.systemChannel.send(`Пользователь <@${userId}> был убран из черного списка на другом сервере. Бан снят автоматически.`);
+        } catch {}
     }
 }
 
