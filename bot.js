@@ -195,6 +195,10 @@ async function CheckBanned(member) {
 }
 
 async function CheckSpam(message) {
+    //Не трогаем админсостав
+    if(message.member.hasPermission(Discord.Permissions.FLAGS.MANAGE_MESSAGES))
+        return false;
+    
     if(message.content.search(/discord\s*\.\s*gg/gim) > -1) {
         await blacklistDb.insert({ _id: message.author.id, server: message.guild.id, moder: client.user.id, date: Date.now(), reason: 'Автоматический бан по причине спама' });
         await message.member.ban({ days: 1, reason: 'Автоматический бан по причине спама' });
