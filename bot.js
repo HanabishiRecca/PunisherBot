@@ -202,7 +202,7 @@ async function CheckSpam(message) {
     if(message.content.search(/discord\s*\.\s*gg/gim) > -1) {
         await blacklistDb.insert({ _id: message.author.id, server: message.guild.id, moder: client.user.id, date: Date.now(), reason: 'Автоматический бан по причине спама' });
         await message.member.ban({ days: 1, reason: 'Автоматический бан по причине спама' });
-        message.guild.systemChannel.send(`Пользователь ${message.member.toString()} автоматически добавлен в черный список по причине спама.`);
+        message.guild.systemChannel.send(`Пользователь ${message.member.toString()} автоматически добавлен в черный список по причине спама.\n\n**Содержимое сообщения**\n${message.content}`);
         NotifyAllServers(message.guild.id, message.author.id, true);
         return true;
     }
@@ -234,7 +234,7 @@ client.on('message', async (message) => {
     if(message.author.id == client.user.id)
         return;
     
-    if((message.member.joinedTimestamp > Date.now() - config.banJoinPeriod) && await CheckBanned(message.member) && await CheckSpam(message))
+    if((message.member.joinedTimestamp > Date.now() - config.banJoinPeriod) && (await CheckBanned(message.member) || await CheckSpam(message)))
         return;
     
     if(!message.content.startsWith(config.prefix))
