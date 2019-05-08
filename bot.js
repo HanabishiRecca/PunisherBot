@@ -65,7 +65,9 @@ const botCommands = {
             info = await serversDb.findOne({ _id: message.guild.id });
         
         if(channel) {
-            if(!channel.permissionsFor(message.guild.me).has(Discord.Permissions.FLAGS.SEND_MESSAGES)) {
+            try {
+                await channel.send('Проверка канала');
+            } catch {
                 message.reply('нет прав на размещение сообщений в указанном канале!');
                 return;
             }
