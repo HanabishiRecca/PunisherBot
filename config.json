@@ -1,4 +1,5 @@
 {
     "prefix": "b/",
-    "banJoinPeriod": 86400000
+    "banJoinPeriod": 86400000,
+    "serviceChannel": "575613776267837441"
 }

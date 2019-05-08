@@ -83,7 +83,9 @@ const botCommands = {
                 message.reply(`пользователь ${target.toString()} уже находится в черном списке.`);
             } else {
                 await blacklistDb.insert({ _id: target.id, server: message.guild.id, moder: message.author.id, date: dt, reason: reason });
-                message.guild.systemChannel.send(`Модератор ${message.member.toString()} добавил пользователя ${target.toString()} в черный список.${reason ? `\nПричина: ${reason}` : ''}`);
+                const msg = `Модератор ${message.member.toString()} добавил пользователя ${target.toString()} в черный список.${reason ? `\nПричина: ${reason}` : ''}`;
+                message.guild.systemChannel.send(msg);
+                ServiceLog(message.guild, msg);
                 NotifyAllServers(message.guild.id, target.id, true);
             }
         }
@@ -113,7 +115,9 @@ const botCommands = {
             if(userInfo) {
                 await blacklistDb.remove({ _id: id });
                 await message.guild.unban(id, reason);
-                message.guild.systemChannel.send(`Модератор ${message.member.toString()} убрал пользователя <@${id}> из черного списка.${reason ? `\nПричина: ${reason}` : ''}`);
+                const msg = `Модератор ${message.member.toString()} убрал пользователя <@${id}> из черного списка.${reason ? `\nПричина: ${reason}` : ''}`;
+                message.guild.systemChannel.send(msg);
+                ServiceLog(message.guild, msg);
                 NotifyAllServers(message.guild.id, id, false);
             } else {
                 message.reply(`пользователь <@${id}> не находится в черном списке.`);
@@ -189,7 +193,9 @@ async function CheckBanned(member) {
         return false;
     
     await member.ban({ days: 1, reason: 'Автоматический бан' });
-    member.guild.systemChannel.send(`Пользователь ${member.toString()} находится в черном списке! Выдан автоматический бан.`);
+    const msg = `Пользователь ${member.toString()} находится в черном списке! Выдан автоматический бан.`;
+    member.guild.systemChannel.send(msg);
+    ServiceLog(member.guild, msg);
     
     return true;
 }
@@ -202,11 +208,17 @@ async function CheckSpam(message) {
     if(message.content.search(/discord\s*\.\s*gg/gim) > -1) {
         await blacklistDb.insert({ _id: message.author.id, server: message.guild.id, moder: client.user.id, date: Date.now(), reason: 'Автоматический бан по причине спама' });
         await message.member.ban({ days: 1, reason: 'Автоматический бан по причине спама' });
-        message.guild.systemChannel.send(`Пользователь ${message.member.toString()} автоматически добавлен в черный список по причине спама.\n\n**Содержимое сообщения**\n${message.content}`);
+        const msg = `Пользователь ${message.member.toString()} автоматически добавлен в черный список по причине спама.\n\n**Содержимое сообщения**\n${message.content}`;
+        message.guild.systemChannel.send(msg);
+        ServiceLog(message.guild, msg);
         NotifyAllServers(message.guild.id, message.author.id, true);
         return true;
     }
     return false;
+}
+
+async function ServiceLog(srcServer, msg) {
+    client.channels.get(config.serviceChannel).send(`**Сервер:** ${srcServer.name} (${srcServer.id})\n**Событие:**\n${msg}`);
 }
 
 async function NotifyServer(server, userId, mode) {
