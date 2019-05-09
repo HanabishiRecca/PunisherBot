@@ -373,7 +373,7 @@ async function CheckSpam(message) {
     if(message.content.search(/discord\s*\.\s*gg/gim) > -1) {
         await blacklistDb.insert({ _id: message.author.id, server: message.guild.id, moder: client.user.id, date: Date.now(), reason: 'Автоматический бан по причине спама' });
         await message.member.ban({ days: 1, reason: 'Автоматический бан по причине спама' });
-        const msg = `Пользователь ${message.member.toString()} автоматически добавлен в черный список по причине спама.\n\n**Содержимое сообщения**\n${message.content}`;
+        const msg = `Пользователь ${message.member.toString()} автоматически добавлен в черный список по причине спама.\n\n**Содержимое сообщения**\`\`\`${message.content}\`\`\``;
         SendInfo(message.guild, msg);
         ServiceLog(message.guild, msg);
         NotifyAllServers(message.guild.id, message.author.id, true);
