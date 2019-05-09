@@ -212,7 +212,7 @@ const botCommands = {
                 server = client.guilds.get(userInfo.server);
             
             if(userInfo)
-                message.channel.send(`**Информация**\nПользователь <@${id}> находится в черном списке.\nСервер: ${server ? server.name : ''} (${userInfo.server})\nМодератор: <@${userInfo.moder}>\nДата добавления: ${Util.DtString(userInfo.date)}\nПричина: ${userInfo.reason}`);
+                message.channel.send(`**Информация**\nПользователь <@${id}> находится в черном списке.\nСервер: ${server ? `${server.name} (${server.id})` : userInfo.server} \nМодератор: <@${userInfo.moder}>\nДата добавления: ${Util.DtString(userInfo.date)}\nПричина: ${userInfo.reason}`);
             else
                 message.channel.send(`**Информация**\nПользователь <@${id}> не находится в черном списке.`);
         }
@@ -311,6 +311,21 @@ const botCommands = {
         
         message.channel.send(msg);
     },
+    
+    //Выдача списка всех пользователей в черном списке
+    blacklist: async (message) => {
+        if(message.channel.id != config.serviceChannel)
+            return;
+        
+        const users = await blacklistDb.find({});
+        
+        let msg = `**Черный список**\nВсего ${users.length}\n\n`;
+        for(let i = 0; i < users.length; i++)
+            msg += `#${i + 1} <@${users[i]._id}>\n`;
+        
+        message.channel.send(msg);
+    },
+    
 };
 
 //Проверка пользователя в черном списке
