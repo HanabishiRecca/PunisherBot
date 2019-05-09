@@ -35,23 +35,28 @@ const
     RemoveMentions = str => str.replace(Discord.MessageMentions.USERS_PATTERN, ''),
     GetMentions = str => str.match(Discord.MessageMentions.USERS_PATTERN);
 
-const helpText = `**Справка**
-
-Префикс: **${config.prefix}**
-
-Команды:
-**channel** [#channel] - установка канала для информационных сообщений бота. Если канал не указан, параметр будет очищен.
-**add** <@user> [reason] - добавить указанных пользователей в черный список с указанием причины.
-**remove** <@user> - убрать указанных пользователей из черного списка.
-**info** <@user> - показать информацию об указанных пользователях.
-**cleanup** <count> - удалить указанное количество последних сообщений на канале. За один раз можно удалить максимум 100 сообщений.
-**stats** - показать статистику.
-**link** - показать ссылку на приглашение бота.
-**help** - показать данное справочное сообщение.
-
-Параметры:
-<param> - обязательный параметр.
-[param] - необязательный параметр.`;
+const
+    userHelp = `**Команды пользователя**
+\`link\` - показать ссылку на приглашение бота.
+\`help\` - показать данное справочное сообщение.`,
+    
+    moderHelp = `**Команды модератора**
+\`cleanup N\` - удалить N последних сообщений на канале. За один раз можно удалить максимум 100 сообщений.
+\`info @user\` - показать информацию об указанных пользователях.`,
+    
+    trustedHelp = `**Команды доверенного сервера**
+\`add @user причина\` - добавить указанных пользователей в черный список с указанием причины.
+\`remove @user\` - убрать указанных пользователей из черного списка.`,
+    
+    adminHelp = `**Команды администратора**
+\`channel #канал\` - установка канала для информационных сообщений бота. Если канал не указан, параметр будет очищен.
+\`stats\` - показать статистику.`,
+    
+    serviceHelp = `**Сервисные команды**
+\`addserver id\` - добавить сервер с указанным id в доверенные.
+\`removeserver id\` - убрать сервер с указанным id из доверенных.
+\`serverlist\` - показать все подключенные серверы.
+\`blacklist\` - показать список пользователей в черном списке.`;
 
 const botCommands = {
     
@@ -61,14 +66,17 @@ const botCommands = {
             return;
         
         const
-            channel = (message.mentions.channels && message.mentions.channels.size) ? message.mentions.channels.first() : null,
+            channel = message.mentions.channels.first(),
             info = await serversDb.findOne({ _id: message.guild.id });
         
         if(channel) {
-            try {
-                await channel.send('Проверка канала');
-            } catch {
-                message.reply('нет прав на размещение сообщений в указанном канале!');
+            const perms = channel.permissionsFor(message.guild.me);
+            if(!perms.has(Discord.Permissions.FLAGS.READ_MESSAGES)) {
+                message.reply('нет права доступа к указанному каналу!');
+                return;
+            }
+            if(!perms.has(Discord.Permissions.FLAGS.SEND_MESSAGES)) {
+                message.reply('нет права на размещение сообщений в указанном канале!');
                 return;
             }
             
@@ -230,8 +238,8 @@ const botCommands = {
     
     //Выдача статистики
     stats: async (message) => {
-        //Предположительно пока даем получать информацию только модераторам
-        if(!message.member.hasPermission(Discord.Permissions.FLAGS.MANAGE_MESSAGES))
+        //Предположительно пока даем получать информацию только администраторам
+        if(!message.member.hasPermission(Discord.Permissions.FLAGS.MANAGE_CHANNELS))
             return;
         
         const count = await blacklistDb.count({});
@@ -245,11 +253,24 @@ const botCommands = {
     
     //Справка по боту
     help: async (message) => {
-        //Предположительно пока даем получать информацию только модераторам
-        if(!message.member.hasPermission(Discord.Permissions.FLAGS.MANAGE_MESSAGES))
-            return;
+        let text = `**Справка**\n\n${userHelp}\n\n`;
         
-        message.channel.send(helpText);
+        if(message.member.hasPermission(Discord.Permissions.FLAGS.MANAGE_MESSAGES))
+            text += `${moderHelp}\n\n`;
+        
+        if(message.member.hasPermission(Discord.Permissions.FLAGS.BAN_MEMBERS)) {
+            const info = await serversDb.findOne({ _id: message.guild.id });
+            if(info && info.trusted)
+                text += `${trustedHelp}\n\n`;
+        }
+        
+        if(message.member.hasPermission(Discord.Permissions.FLAGS.MANAGE_CHANNELS))
+            text += `${adminHelp}\n\n`;
+        
+        if(message.channel.id == config.serviceChannel)
+            text += `${serviceHelp}\n\n`;
+        
+        message.channel.send(text);
     },
     
     //Суперадминские команды, не показываем в справке, работают только в сервисном чате
@@ -267,7 +288,7 @@ const botCommands = {
         const info = await serversDb.findOne({ _id: server.id });
         if(info) {
             if(info.trusted) {
-                message.reply(`сервер **${server.name}** (${server.id}) уже находится в списке доверенных.`);
+                message.reply(`сервер уже находится в списке доверенных.`);
                 return;
             }
             await serversDb.update({ _id: server.id }, { $set: { trusted: true } });
@@ -292,9 +313,7 @@ const botCommands = {
         
         const server = client.guilds.get(message.content);
         if(server)
-            message.reply(`сервер **${server.name}** (${server.id}) удален из списка доверенных.`);
-        else
-            message.reply(`сервер с идентификатором **${message.content}** удален из списка доверенных.`);
+            message.reply(`сервер ${server ? `${server.name} (${server.id})` : message.content} удален из списка доверенных.`);
     },
     
     //Выдача списка всех подключенных серверов
