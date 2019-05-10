@@ -33,8 +33,7 @@ const
 
 const
     RemoveMentions = str => str.replace(Discord.MessageMentions.USERS_PATTERN, ''),
-    GetMentions = str => str.match(Discord.MessageMentions.USERS_PATTERN),
-    Sleep = ms => new Promise(r => setTimeout(r, ms));;
+    GetMentions = str => str.match(Discord.MessageMentions.USERS_PATTERN);
 
 const
     userHelp = `**Команды пользователя**
