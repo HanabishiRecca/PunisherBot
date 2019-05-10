@@ -19,7 +19,7 @@ const
 
 const client = new Discord.Client({
     messageCacheMaxSize: 1,
-    disabledEvents: ['GUILD_ROLE_CREATE', 'GUILD_ROLE_DELETE', 'GUILD_ROLE_UPDATE', 'CHANNEL_UPDATE', 'CHANNEL_PINS_UPDATE', 'MESSAGE_DELETE', 'MESSAGE_UPDATE', 'MESSAGE_DELETE_BULK', 'USER_UPDATE', 'USER_NOTE_UPDATE', 'USER_SETTINGS_UPDATE', 'PRESENCE_UPDATE', 'VOICE_STATE_UPDATE', 'TYPING_START', 'VOICE_SERVER_UPDATE', 'RELATIONSHIP_ADD', 'RELATIONSHIP_REMOVE'],
+    disabledEvents: ['CHANNEL_PINS_UPDATE', 'MESSAGE_DELETE', 'MESSAGE_UPDATE', 'USER_UPDATE', 'USER_NOTE_UPDATE', 'USER_SETTINGS_UPDATE', 'PRESENCE_UPDATE', 'VOICE_STATE_UPDATE', 'TYPING_START', 'VOICE_SERVER_UPDATE', 'RELATIONSHIP_ADD', 'RELATIONSHIP_REMOVE'],
 });
 client.on('disconnect', Shutdown);
 client.on('error', console.warn);
@@ -33,7 +33,8 @@ const
 
 const
     RemoveMentions = str => str.replace(Discord.MessageMentions.USERS_PATTERN, ''),
-    GetMentions = str => str.match(Discord.MessageMentions.USERS_PATTERN);
+    GetMentions = str => str.match(Discord.MessageMentions.USERS_PATTERN),
+    Sleep = ms => new Promise(r => setTimeout(r, ms));;
 
 const
     userHelp = `**Команды пользователя**
@@ -42,21 +43,19 @@ const
     
     moderHelp = `**Команды модератора**
 \`cleanup N\` - удалить N последних сообщений на канале. За один раз можно удалить максимум 100 сообщений.
-\`info @user\` - показать информацию об указанных пользователях.`,
-    
-    trustedHelp = `**Команды доверенного сервера**
-\`add @user причина\` - добавить указанных пользователей в черный список с указанием причины.
-\`remove @user\` - убрать указанных пользователей из черного списка.`,
+\`info @user\` - показать информацию об указанных пользователях из черного списка.
+\`blacklist\` - показать список всех пользователей в черном списке.`,
     
     adminHelp = `**Команды администратора**
 \`channel #канал\` - установка канала для информационных сообщений бота. Если канал не указан, параметр будет очищен.
-\`stats\` - показать статистику.`,
+\`stats\` - показать статистику.
+\`serverlist\` - показать список всех подключенных к боту серверов.`,
     
     serviceHelp = `**Сервисные команды**
+\`add @user причина\` - добавить указанных пользователей в черный список с указанием причины.
+\`remove @user\` - убрать указанных пользователей из черного списка.
 \`addserver id\` - добавить сервер с указанным id в доверенные.
-\`removeserver id\` - убрать сервер с указанным id из доверенных.
-\`serverlist\` - показать все подключенные серверы.
-\`blacklist\` - показать список пользователей в черном списке.`;
+\`removeserver id\` - убрать сервер с указанным id из доверенных.`;
 
 const botCommands = {
     
@@ -93,9 +92,116 @@ const botCommands = {
         
     },
     
+    //Выдача информации о состоянии пользователя
+    info: async (message) => {
+        if(!message.member.hasPermission(Discord.Permissions.FLAGS.MANAGE_MESSAGES))
+            return;
+        
+        const mentions = GetMentions(message.content);
+        if(!mentions)
+            return;
+        
+        for(let i = 0; i < mentions.length; i++) {
+            const match = mentions[i].match(/[0-9]+/);
+            if(!match)
+                continue;
+            
+            const
+                id = match[0],
+                userInfo = await blacklistDb.findOne({ _id: id }),
+                server = client.guilds.get(userInfo.server);
+            
+            if(userInfo)
+                message.channel.send(`**Информация**\nПользователь: <@${id}>\nТег: ${(await client.fetchUser(id, false)).tag}\nСервер: ${server ? `${server.name} (${server.id})` : userInfo.server} \nМодератор: <@${userInfo.moder}>\nДата добавления: ${Util.DtString(userInfo.date)}\nПричина: ${userInfo.reason}`);
+            else
+                message.channel.send(`**Информация**\nПользователь <@${id}> не находится в черном списке.`);
+        }
+    },
+    
+    //Выдача списка всех пользователей в черном списке
+    blacklist: async (message) => {
+        if(!message.member.hasPermission(Discord.Permissions.FLAGS.MANAGE_MESSAGES))
+            return;
+        
+        const users = await blacklistDb.find({});
+        
+        await message.channel.send(`**Черный список**\nВсего пользователей: ${users.length}\n*Список будет подгружаться частями, это может занять некоторое время.*`);
+        let text = '```py\n';
+        for(let i = 0; i < users.length; i++) {
+            const
+                id = users[i]._id,
+                user = await client.fetchUser(id, false),
+                add = `<@${id}> → ${user.tag}\n`;
+            
+            if(text.length + add.length < 1990) {
+                text += add;
+            } else {
+                await message.channel.send(text + '```');
+                text = '```py\n' + add;
+            }
+        }
+        await message.channel.send(text + '```');
+    },
+    
+    //Удаление сообщений
+    cleanup: async (message) => {
+        if(!message.member.hasPermission(Discord.Permissions.FLAGS.MANAGE_MESSAGES))
+            return;
+        
+        const count = parseInt(message.content);
+        if(count && (count > 0))
+            message.channel.bulkDelete(Math.min(count, 100));
+    },
+    
+    //Выдача статистики
+    stats: async (message) => {
+        if(!message.member.hasPermission(Discord.Permissions.FLAGS.MANAGE_CHANNELS))
+            return;
+        
+        const count = await blacklistDb.count({});
+        message.channel.send(`**Статистика**\nПользователей в черном списке: ${count}\nПодключено серверов: ${client.guilds.size}`);
+    },
+    
+    //Выдача списка всех подключенных серверов
+    serverlist: async (message) => {
+        if(!message.member.hasPermission(Discord.Permissions.FLAGS.MANAGE_CHANNELS))
+            return;
+        
+        let msg = `**Список серверов**\nВсего ${client.guilds.size}\n\`\`\`css\n`;
+        for(const server of client.guilds.values()) {
+            const info = await serversDb.findOne({ _id: server.id });
+            msg += `[${(info && info.trusted) ? 'v' : ' '}] | ${server.id} | ${server.name}\n`;
+        }
+        msg += '```';
+        
+        message.channel.send(msg);
+    },
+    
+    //Ссылка на приглашение бота
+    link: async (message) => {
+        message.reply(`<${await client.generateInvite(523334)}>`);
+    },
+    
+    //Справка по боту
+    help: async (message) => {
+        let text = `**Справка**\n\n${userHelp}\n\n`;
+        
+        if(message.member.hasPermission(Discord.Permissions.FLAGS.MANAGE_MESSAGES))
+            text += `${moderHelp}\n\n`;
+        
+        if(message.member.hasPermission(Discord.Permissions.FLAGS.MANAGE_CHANNELS))
+            text += `${adminHelp}\n\n`;
+        
+        if(message.channel.id == config.serviceChannel)
+            text += `${serviceHelp}\n\n`;
+        
+        message.channel.send(text);
+    },
+    
+    //Суперадминские команды, не показываем в справке, работают только в сервисном чате
     //Добавление в черный список
     add: async (message) => {
-        if(!message.member.hasPermission(Discord.Permissions.FLAGS.BAN_MEMBERS))
+        if(message.channel.id != config.serviceChannel)
             return;
         
         const info = await serversDb.findOne({ _id: message.guild.id });
@@ -159,7 +265,7 @@ const botCommands = {
     
     //Удаление из черного списка
     remove: async (message) => {
-        if(!message.member.hasPermission(Discord.Permissions.FLAGS.BAN_MEMBERS))
+        if(message.channel.id != config.serviceChannel)
             return;
         
         const info = await serversDb.findOne({ _id: message.guild.id });
@@ -199,81 +305,6 @@ const botCommands = {
         }
     },
     
-    //Выдача информации о состоянии пользователя
-    info: async (message) => {
-        //Предположительно пока даем получать информацию только модераторам
-        if(!message.member.hasPermission(Discord.Permissions.FLAGS.MANAGE_MESSAGES))
-            return;
-        
-        const mentions = GetMentions(message.content);
-        if(!mentions)
-            return;
-        
-        for(let i = 0; i < mentions.length; i++) {
-            const match = mentions[i].match(/[0-9]+/);
-            if(!match)
-                continue;
-            
-            const
-                id = match[0],
-                userInfo = await blacklistDb.findOne({ _id: id }),
-                server = client.guilds.get(userInfo.server);
-            
-            if(userInfo)
-                message.channel.send(`**Информация**\nПользователь <@${id}> находится в черном списке.\nСервер: ${server ? `${server.name} (${server.id})` : userInfo.server} \nМодератор: <@${userInfo.moder}>\nДата добавления: ${Util.DtString(userInfo.date)}\nПричина: ${userInfo.reason}`);
-            else
-                message.channel.send(`**Информация**\nПользователь <@${id}> не находится в черном списке.`);
-        }
-    },
-    
-    //Удаление сообщений
-    cleanup: async (message) => {
-        if(!message.member.hasPermission(Discord.Permissions.FLAGS.MANAGE_MESSAGES))
-            return;
-        
-        const count = parseInt(message.content);
-        if(count && (count > 0))
-            message.channel.bulkDelete(count);
-    },
-    
-    //Выдача статистики
-    stats: async (message) => {
-        //Предположительно пока даем получать информацию только администраторам
-        if(!message.member.hasPermission(Discord.Permissions.FLAGS.MANAGE_CHANNELS))
-            return;
-        
-        const count = await blacklistDb.count({});
-        message.channel.send(`**Статистика**\nПользователей в черном списке: ${count}\nПодключено серверов: ${client.guilds.size}`);
-    },
-    
-    //Ссылка на приглашение бота
-    link: async (message) => {
-        message.reply(`<${await client.generateInvite(523334)}>`);
-    },
-    
-    //Справка по боту
-    help: async (message) => {
-        let text = `**Справка**\n\n${userHelp}\n\n`;
-        
-        if(message.member.hasPermission(Discord.Permissions.FLAGS.MANAGE_MESSAGES))
-            text += `${moderHelp}\n\n`;
-        
-        if(message.member.hasPermission(Discord.Permissions.FLAGS.BAN_MEMBERS)) {
-            const info = await serversDb.findOne({ _id: message.guild.id });
-            if(info && info.trusted)
-                text += `${trustedHelp}\n\n`;
-        }
-        
-        if(message.member.hasPermission(Discord.Permissions.FLAGS.MANAGE_CHANNELS))
-            text += `${adminHelp}\n\n`;
-        
-        if(message.channel.id == config.serviceChannel)
-            text += `${serviceHelp}\n\n`;
-        
-        message.channel.send(text);
-    },
-    
-    //Суперадминские команды, не показываем в справке, работают только в сервисном чате
     //Добавление доверенного сервера
     addserver: async (message) => {
         if(message.channel.id != config.serviceChannel)
@@ -316,35 +347,6 @@ const botCommands = {
             message.reply(`сервер ${server ? `${server.name} (${server.id})` : message.content} удален из списка доверенных.`);
     },
     
-    //Выдача списка всех подключенных серверов
-    serverlist: async (message) => {
-        if(message.channel.id != config.serviceChannel)
-            return;
-        
-        let msg = `**Список серверов**\nВсего ${client.guilds.size}\n\`\`\`css\n`;
-        for(const server of client.guilds.values()) {
-            const info = await serversDb.findOne({ _id: server.id });
-            msg += `[${(info && info.trusted) ? 'v' : ' '}] | ${server.id} | ${server.name}\n`;
-        }
-        msg += '```';
-        
-        message.channel.send(msg);
-    },
-    
-    //Выдача списка всех пользователей в черном списке
-    blacklist: async (message) => {
-        if(message.channel.id != config.serviceChannel)
-            return;
-        
-        const users = await blacklistDb.find({});
-        
-        let msg = `**Черный список**\nВсего ${users.length}\n\n`;
-        for(let i = 0; i < users.length; i++)
-            msg += `#${i + 1} <@${users[i]._id}>\n`;
-        
-        message.channel.send(msg);
-    },
-    
 };
 
 //Проверка пользователя в черном списке
@@ -365,21 +367,70 @@ async function CheckBanned(member) {
     return true;
 }
 
+const suspiciousUsers = new Map();
 async function CheckSpam(message) {
     //Не трогаем админсостав
     if(message.member.hasPermission(Discord.Permissions.FLAGS.MANAGE_MESSAGES))
         return false;
     
-    if(message.content.search(/discord\s*\.\s*gg/gim) > -1) {
-        await blacklistDb.insert({ _id: message.author.id, server: message.guild.id, moder: client.user.id, date: Date.now(), reason: 'Автоматический бан по причине спама' });
-        await message.member.ban({ days: 1, reason: 'Автоматический бан по причине спама' });
-        const msg = `Пользователь ${message.member.toString()} автоматически добавлен в черный список по причине спама.\n\n**Содержимое сообщения**\`\`\`${message.content}\`\`\``;
-        SendInfo(message.guild, msg);
-        ServiceLog(message.guild, msg);
-        NotifyAllServers(message.guild.id, message.author.id, true);
-        return true;
+    const code = Util.GetInviteCode(message.content);
+    if(!code)
+        return false;
+    
+    let invite;
+    try {
+        invite = await client.rest.methods.getInvite(code);
+    } catch {}
+    
+    if(invite) {
+        if(invite.guild.id == message.guild.id)
+            return false;
+        
+        if(client.guilds.has(invite.guild.id)) {
+            const info = await serversDb.findOne({ _id: invite.guild.id });
+            if(info && info.trusted)
+                return false;
+        }
     }
-    return false;
+    
+    const now = Date.now();
+    let resident = false;
+    for(const server of client.guilds.values()) {
+        if(server.id == message.guild.id)
+            continue;
+        
+        try {
+            if((await server.fetchMember(message.author.id)).joinedTimestamp < now - config.banJoinPeriod) {
+                resident = true;
+                break;
+            }
+        } catch {}
+    }
+    
+    if(resident) {
+        if(suspiciousUsers.has(message.author.id)) {
+            await message.delete();
+            message.author.send(`Обнаружено злоупотребление инвайтами. Сообщение удалено.`);
+            Notify(message.guild, `Злоупотребление инвайтами от пользователя ${message.author.toString()}. Сообщение удалено, пользователю выслано предупреждение.\n\n**Содержимое сообщения**\`\`\`${message.content}\`\`\``);
+            clearTimeout(suspiciousUsers.get(message.author.id));
+        }
+        suspiciousUsers.set(message.author.id, setTimeout(suspiciousUsers.delete, config.suspiciousTimeout, message.author.id));
+    } else {
+        if(suspiciousUsers.has(message.author.id)) {
+            await blacklistDb.insert({ _id: message.author.id, server: message.guild.id, moder: client.user.id, date: Date.now(), reason: 'Автоматически: сторонний пользователь, спам сторонним инвайтом' });
+            await message.member.ban({ days: 1, reason: 'Автоматический бан' });
+            Notify(`Пользователь ${message.member.toString()} автоматически добавлен в черный список.\n\n**Содержимое сообщения**\`\`\`${message.content}\`\`\``);
+            NotifyAllServers(message.guild.id, message.author.id, true);
+            suspiciousUsers.delete(message.author.id);
+        } else {
+            await message.delete();
+            suspiciousUsers.set(message.author.id, 0);
+            message.author.send(`Обнаружена попытка спама на сервере \`${message.guild.name}\`. Сообщение удалено. Повторная попытка спама приведет к бану.`);
+            Notify(message.guild, `Сторонний пользователь ${message.author.toString()} разместил стороннее приглашение. Сообщение удалено, пользователю выслано предупреждение. Повторная попытка приведет к бану.\n\n**Содержимое сообщения**\`\`\`${message.content}\`\`\``);
+        }
+    }
+    
+    return true;
 }
 
 async function SendInfo(server, msg) {
@@ -388,8 +439,13 @@ async function SendInfo(server, msg) {
         client.channels.get(info.channel).send(msg);
 }
 
-async function ServiceLog(srcServer, msg) {
-    client.channels.get(config.serviceChannel).send(`**Сервер:** ${srcServer.name} (${srcServer.id})\n**Событие:**\n${msg}`);
+async function ServiceLog(server, msg) {
+    client.channels.get(config.serviceChannel).send(`**Сервер:** ${server.name} (${server.id})\n**Событие:**\n${msg}`);
+}
+
+async function Notify(server, msg) {
+    SendInfo(server, msg);
+    ServiceLog(server, msg);
 }
 
 async function NotifyServer(server, userId, mode) {

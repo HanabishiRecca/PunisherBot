@@ -1,5 +1,7 @@
 {
     "prefix": "b/",
     "banJoinPeriod": 86400000,
+    "suspiciousTimeout": 60000,
+    "usersPerPage": 50,
     "serviceChannel": "575613776267837441"
 }
