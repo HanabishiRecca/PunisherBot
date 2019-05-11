@@ -483,7 +483,7 @@ client.on('guildCreate', async (server) => {
 });
 client.on('guildDelete', async (server) => {
     client.channels.get(config.serviceChannel).send(`**Сервер отключен**\n${server.name} (${server.id})`);
-    serversDb.remove({ _id: server.id });
+    //serversDb.remove({ _id: server.id });
 });
 
 client.on('message', async (message) => {
@@ -493,7 +493,7 @@ client.on('message', async (message) => {
     if(message.author.id == client.user.id)
         return;
     
-    if((message.member.joinedTimestamp > Date.now() - config.banJoinPeriod) && (await CheckBanned(message.member) || await CheckSpam(message)))
+    if(((message.member.joinedTimestamp > Date.now() - config.banJoinPeriod) && await CheckBanned(message.member)) || await CheckSpam(message))
         return;
     
     if(!message.content.startsWith(config.prefix))
