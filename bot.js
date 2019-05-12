@@ -349,7 +349,7 @@ async function CheckBanned(member) {
         Notify(server, `Не удалось выдать бан пользователю из черного списка ${member.toString()}! У бота недостаточно прав, либо роль пользователя находится выше роли бота.`);
         return true;
     }
-    Notify(server, `Пользователь ${member.toString()} находится в черном списке! Выдан автоматический бан.\nУказанная причина: ${userInfo.reason}`);
+    Notify(server, `Пользователю ${member.toString()} из черного списка выдан автоматический бан!\nУказанная причина: ${userInfo.reason}`);
     
     return true;
 }
@@ -382,16 +382,20 @@ async function CheckSpam(message) {
     
     const now = Date.now();
     let resident = false;
-    for(const server of client.guilds.values()) {
-        if(server.id == message.guild.id)
-            continue;
-        
-        try {
-            if((await server.fetchMember(message.author.id)).joinedTimestamp < now - config.banJoinPeriod) {
-                resident = true;
-                break;
-            }
-        } catch {}
+    if(message.member.joinedTimestamp < now - config.banJoinPeriod) {
+        resident = true;
+    } else {
+        for(const server of client.guilds.values()) {
+            if(server.id == message.guild.id)
+                continue;
+            
+            try {
+                if((await server.fetchMember(message.author.id)).joinedTimestamp < now - config.banJoinPeriod) {
+                    resident = true;
+                    break;
+                }
+            } catch {}
+        }
     }
     
     if(resident) {
@@ -462,10 +466,10 @@ async function Notify(server, msg) {
 client.on('guildMemberAdd', CheckBanned);
 
 client.on('guildCreate', async (server) => {
-    client.channels.get(config.serviceChannel).send(`**Подключен новый сервер!**\n${server.name} (${server.id})`);
+    ServiceLog(`**Подключен новый сервер!**\n\`${server.name}\` (${server.id})`);
 });
 client.on('guildDelete', async (server) => {
-    client.channels.get(config.serviceChannel).send(`**Сервер отключен**\n${server.name} (${server.id})`);
+    ServiceLog(`**Сервер отключен**\n\`${server.name}\` (${server.id})`);
 });
 
 client.on('message', async (message) => {
@@ -475,7 +479,10 @@ client.on('message', async (message) => {
     if(message.author.id == client.user.id)
         return;
     
-    if(((message.member.joinedTimestamp > Date.now() - config.banJoinPeriod) && await CheckBanned(message.member)) || await CheckSpam(message))
+    if(await CheckBanned(message.member))
+        return;
+    
+    if(await CheckSpam(message))
         return;
     
     if(!message.content.startsWith(config.prefix))
