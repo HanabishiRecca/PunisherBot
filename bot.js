@@ -366,11 +366,9 @@ async function CheckSpam(message) {
         if(invite.guild.id == message.guild.id)
             return false;
         
-        if(client.guilds.has(invite.guild.id)) {
-            const info = await serversDb.findOne({ _id: invite.guild.id });
-            if(info && info.trusted)
-                return false;
-        }
+        const info = await serversDb.findOne({ _id: invite.guild.id });
+        if(info && info.trusted)
+            return false;
     }
     
     const now = Date.now();
@@ -391,19 +389,19 @@ async function CheckSpam(message) {
         }
     }
     
+    const
+        server = message.guild,
+        user = message.author;
+    
     if(resident) {
-        if(suspiciousUsers.has(message.author.id)) {
+        if(suspiciousUsers.has(user.id)) {
             await message.delete();
-            message.author.send(`Обнаружено злоупотребление инвайтами. Сообщение удалено.`);
-            Notify(message.guild, `Злоупотребление инвайтами от пользователя ${message.author.toString()}. Сообщение удалено, пользователю выслано предупреждение.\n\n**Содержимое сообщения**\`\`\`${message.content}\`\`\``);
-            clearTimeout(suspiciousUsers.get(message.author.id));
+            user.send(`Обнаружено злоупотребление инвайтами. Сообщение удалено.`);
+            Notify(server, `Злоупотребление инвайтами от пользователя ${user.toString()}. Сообщение удалено, пользователю выслано предупреждение.\n\n**Содержимое сообщения**\`\`\`${message.content}\`\`\``);
+            clearTimeout(suspiciousUsers.get(user.id));
         }
-        suspiciousUsers.set(message.author.id, setTimeout(suspiciousUsers.delete, config.suspiciousTimeout, message.author.id));
+        suspiciousUsers.set(user.id, setTimeout(suspiciousUsers.delete, config.suspiciousTimeout, user.id));
     } else {
-        const
-            server = message.guild,
-            user = message.author;
-        
         if(suspiciousUsers.has(user.id)) {
             await blacklistDb.insert({ _id: user.id, server: server.id, moder: client.user.id, date: Date.now(), reason: 'Автоматически: сторонний пользователь, спам сторонним инвайтом' });
             Notify(server, `Пользователь ${user.toString()} автоматически добавлен в черный список.\n\n**Содержимое сообщения**\`\`\`${message.content}\`\`\``);
