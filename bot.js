@@ -283,23 +283,28 @@ const botCommands = {
         if(message.channel.id != config.serviceChannel)
             return;
         
-        const server = client.guilds.get(message.content);
-        if(!server) {
-            message.reply('не удалось найти подключенный сервер с указанным идентификатором.');
+        let id = parseInt(message.content.trim());
+        if(!id)
+            return;
+        
+        id = id.toString();
+        
+        const info = await serversDb.findOne({ _id: id });
+        if(info && info.trusted) {
+            message.reply(`сервер уже находится в списке доверенных.`);
             return;
         }
         
-        const info = await serversDb.findOne({ _id: server.id });
-        if(info) {
-            if(info.trusted) {
-                message.reply(`сервер уже находится в списке доверенных.`);
-                return;
-            }
-            await serversDb.update({ _id: server.id }, { $set: { trusted: true } });
-        } else {
-            await serversDb.insert({ _id: server.id, trusted: true });
-        }
-        message.reply(`сервер **${server.name}** (${server.id}) добавлен в список доверенных.`);
+        if(info)
+            await serversDb.update({ _id: id }, { $set: { trusted: true } });
+        else
+            await serversDb.insert({ _id: id, trusted: true });
+        
+        const server = client.guilds.get(id);
+        if(server)
+            ServiceLog(`Модератор ${message.author.toString()} добавил сервер \`${server.name}\` (${server.id}) в список доверенных.`);
+        else
+            ServiceLog(`Модератор ${message.author.toString()} добавил идентификатор ${id} в список доверенных. Не удалось проверить сервер, так как он не подключен к боту. Данное действие совершается на ваш страх и риск.`);
     },
     
     //Удаление доверенного сервера
@@ -307,17 +312,22 @@ const botCommands = {
         if(message.channel.id != config.serviceChannel)
             return;
         
-        const info = await serversDb.findOne({ _id: message.content });
+        let id = parseInt(message.content.trim());
+        if(!id)
+            return;
+        
+        id = id.toString();
+        
+        const info = await serversDb.findOne({ _id: id });
         if(!(info && info.trusted)) {
-            message.reply(`сервер отсутствует в списке доверенных.`);
+            message.reply(`сервер с указанным идентификатором отсутствует в списке доверенных.`);
             return;
         }
         
-        await serversDb.update({ _id: message.content }, { $unset: { trusted: true } });
+        await serversDb.update({ _id: id }, { $unset: { trusted: true } });
         
-        const server = client.guilds.get(message.content);
-        if(server)
-            message.reply(`сервер ${server ? `${server.name} (${server.id})` : message.content} удален из списка доверенных.`);
+        const server = client.guilds.get(id);
+        ServiceLog(`Модератор ${message.author.toString()} удалил сервер ${server ? `\`${server.name}\` (${server.id})` : id} из списка доверенных.`);
     },
     
 };
@@ -332,8 +342,14 @@ async function CheckBanned(member) {
     if(!userInfo)
         return false;
     
-    await member.ban({ days: 1, reason: userInfo.reason });
-    Notify(message.guild, `Пользователь ${member.toString()} находится в черном списке! Выдан автоматический бан.\nУказанная причина: ${userInfo.reason}`);
+    const server = member.guild;
+    try {
+        await member.ban({ days: 1, reason: userInfo.reason });
+    } catch {
+        Notify(server, `Не удалось выдать бан пользователю из черного списка ${member.toString()}! У бота недостаточно прав, либо роль пользователя находится выше роли бота.`);
+        return true;
+    }
+    Notify(server, `Пользователь ${member.toString()} находится в черном списке! Выдан автоматический бан.\nУказанная причина: ${userInfo.reason}`);
     
     return true;
 }
@@ -417,7 +433,9 @@ async function SpreadBan(userId, mode, reason) {
         if(mode) {
             try {
                 await server.ban(userId, { days: 1, reason: reason });
-            } catch {}
+            } catch {
+                ServiceLog(`Не удалось забанить пользователя ${user.toString()} на сервере \`${server.name}\` (${server.id})! У бота недостаточно прав, либо роль пользователя находится выше роли бота.`);
+            }
         } else {
             try {
                 await server.unban(userId);
@@ -438,7 +456,7 @@ async function ServiceLog(msg) {
 
 async function Notify(server, msg) {
     SendInfo(server, msg);
-    ServiceLog(`**Сервер:** ${server.name} (${server.id})\n**Событие:**\n${msg}`);
+    ServiceLog(`**Сервер:** \`${server.name}\` (${server.id})\n**Событие:**\n${msg}`);
 }
 
 client.on('guildMemberAdd', CheckBanned);
