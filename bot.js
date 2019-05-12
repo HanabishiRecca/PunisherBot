@@ -254,9 +254,7 @@ const botCommands = {
                 message.reply(`пользователь ${usr.toString()} уже находится в черном списке.`);
             } else {
                 await blacklistDb.insert({ _id: usr.id, server: message.guild.id, moder: message.author.id, date: dt, reason: reason });
-                const msg = `Модератор ${message.member.toString()} добавил пользователя ${usr.toString()} в черный список.${reason ? `\nПричина: ${reason}` : ''}`;
-                SendInfo(message.guild, msg);
-                ServiceLog(message.guild, msg);
+                Notify(message.guild, `Модератор ${message.member.toString()} добавил пользователя ${usr.toString()} в черный список.${reason ? `\nПричина: ${reason}` : ''}`);
                 NotifyAllServers(message.guild.id, usr.id, true);
             }
         }
@@ -294,9 +292,7 @@ const botCommands = {
                 try {
                     await message.guild.unban(id, reason);
                 } catch {}
-                const msg = `Модератор ${message.member.toString()} убрал пользователя <@${id}> из черного списка.${reason ? `\nПричина: ${reason}` : ''}`;
-                SendInfo(message.guild, msg);
-                ServiceLog(message.guild, msg);
+                Notify(message.guild, `Модератор ${message.member.toString()} убрал пользователя <@${id}> из черного списка.${reason ? `\nПричина: ${reason}` : ''}`);
                 NotifyAllServers(message.guild.id, id, false);
             } else {
                 message.reply(`пользователь <@${id}> не находится в черном списке.`);
@@ -359,9 +355,7 @@ async function CheckBanned(member) {
         return false;
     
     await member.ban({ days: 1, reason: 'Автоматический бан' });
-    const msg = `Пользователь ${member.toString()} находится в черном списке! Выдан автоматический бан.`;
-    SendInfo(member.guild, msg);
-    ServiceLog(member.guild, msg);
+    Notify(message.guild, `Пользователь ${member.toString()} находится в черном списке! Выдан автоматический бан.`);
     
     return true;
 }
