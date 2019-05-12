@@ -53,8 +53,8 @@ const
     serviceHelp = `**Сервисные команды**
 \`add @user причина\` - добавить указанных пользователей в черный список с указанием причины.
 \`remove @user\` - убрать указанных пользователей из черного списка.
-\`addserver id\` - добавить сервер с указанным id в доверенные.
-\`removeserver id\` - убрать сервер с указанным id из доверенных.`;
+\`trust id\` - добавить сервер с указанным идентификатором в доверенные.
+\`untrust id\` - убрать сервер с указанным идентификатором из доверенных.`;
 
 const botCommands = {
     
@@ -248,12 +248,6 @@ const botCommands = {
         if(message.channel.id != config.serviceChannel)
             return;
         
-        const info = await serversDb.findOne({ _id: message.guild.id });
-        if(!(info && info.trusted)) {
-            message.reply('данный сервер не может убирать пользователей из черного списка.');
-            return;
-        }
-        
         //Реализуем через ручной поиск упоминаний юзеров, так как пользователь может быть не на сервере.
         const mentions = GetMentions(message.content);
         if(!mentions)
@@ -279,19 +273,21 @@ const botCommands = {
     },
     
     //Добавление доверенного сервера
-    addserver: async (message) => {
+    trust: async (message) => {
         if(message.channel.id != config.serviceChannel)
             return;
         
-        let id = parseInt(message.content.trim());
-        if(!id)
+        const match = message.content.match(/[0-9]+/);
+        if(!match)
             return;
         
-        id = id.toString();
+        const
+            id = match[0],
+            server = client.guilds.get(id),
+            info = await serversDb.findOne({ _id: id });
         
-        const info = await serversDb.findOne({ _id: id });
         if(info && info.trusted) {
-            message.reply(`сервер уже находится в списке доверенных.`);
+            message.reply(`${server ? `\`сервер ${server.name}\` (${server.id})` : `идентификатор \`${id}\``} уже находится в списке доверенных.`);
             return;
         }
         
@@ -300,34 +296,31 @@ const botCommands = {
         else
             await serversDb.insert({ _id: id, trusted: true });
         
-        const server = client.guilds.get(id);
-        if(server)
-            ServiceLog(`Модератор ${message.author.toString()} добавил сервер \`${server.name}\` (${server.id}) в список доверенных.`);
-        else
-            ServiceLog(`Модератор ${message.author.toString()} добавил идентификатор ${id} в список доверенных. Не удалось проверить сервер, так как он не подключен к боту. Данное действие совершается на ваш страх и риск.`);
+        ServiceLog(`Модератор ${message.author.toString()} добавил ${server ? `\`сервер ${server.name}\` (${server.id})` : `идентификатор \`${id}\``} в список доверенных.`);
     },
     
     //Удаление доверенного сервера
-    removeserver: async (message) => {
+    untrust: async (message) => {
         if(message.channel.id != config.serviceChannel)
             return;
         
-        let id = parseInt(message.content.trim());
-        if(!id)
+        const match = message.content.match(/[0-9]+/);
+        if(!match)
             return;
         
-        id = id.toString();
+        const
+            id = match[0],
+            server = client.guilds.get(id),
+            info = await serversDb.findOne({ _id: id });
         
-        const info = await serversDb.findOne({ _id: id });
         if(!(info && info.trusted)) {
-            message.reply(`сервер с указанным идентификатором отсутствует в списке доверенных.`);
+            message.reply(`${server ? `\`сервер ${server.name}\` (${server.id})` : `идентификатор \`${id}\``} отсутствует в списке доверенных.`);
             return;
         }
         
         await serversDb.update({ _id: id }, { $unset: { trusted: true } });
         
-        const server = client.guilds.get(id);
-        ServiceLog(`Модератор ${message.author.toString()} удалил сервер ${server ? `\`${server.name}\` (${server.id})` : id} из списка доверенных.`);
+        ServiceLog(`Модератор ${message.author.toString()} удалил ${server ? `\`сервер ${server.name}\` (${server.id})` : `идентификатор \`${id}\``} из списка доверенных.`);
     },
     
 };
@@ -436,7 +429,7 @@ async function SpreadBan(userId, mode, reason) {
     for(const server of client.guilds.values()) {
         if(mode) {
             try {
-                await server.ban(userId, { days: 1, reason: reason });
+                await server.ban(userId, reason);
             } catch {
                 ServiceLog(`Не удалось забанить пользователя ${user.toString()} на сервере \`${server.name}\` (${server.id})! У бота недостаточно прав, либо роль пользователя находится выше роли бота.`);
             }
@@ -500,6 +493,9 @@ client.on('message', async (message) => {
 
 client.on('ready', async () => {
     console.log('READY');
+    
+    //Очистка пустых записей в базе серверов
+    serversDb.remove({ trusted: { $exists: false }, channel: { $exists: false } }, { multi: true });
 });
 
 client.login(process.env.TOKEN);
