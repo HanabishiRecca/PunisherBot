@@ -409,17 +409,21 @@ async function CheckSpam(message) {
         }
         suspiciousUsers.set(message.author.id, setTimeout(suspiciousUsers.delete, config.suspiciousTimeout, message.author.id));
     } else {
-        if(suspiciousUsers.has(message.author.id)) {
-            await blacklistDb.insert({ _id: message.author.id, server: message.guild.id, moder: client.user.id, date: Date.now(), reason: 'Автоматически: сторонний пользователь, спам сторонним инвайтом' });
+        const
+            server = message.guild,
+            user = message.author;
+        
+        if(suspiciousUsers.has(user.id)) {
+            await blacklistDb.insert({ _id: user.id, server: server.id, moder: client.user.id, date: Date.now(), reason: 'Автоматически: сторонний пользователь, спам сторонним инвайтом' });
             await message.member.ban({ days: 1, reason: 'Автоматический бан' });
-            Notify(`Пользователь ${message.member.toString()} автоматически добавлен в черный список.\n\n**Содержимое сообщения**\`\`\`${message.content}\`\`\``);
-            NotifyAllServers(message.guild.id, message.author.id, true);
-            suspiciousUsers.delete(message.author.id);
+            Notify(`Пользователь ${user.toString()} автоматически добавлен в черный список.\n\n**Содержимое сообщения**\`\`\`${message.content}\`\`\``);
+            NotifyAllServers(server.id, user.id, true);
+            suspiciousUsers.delete(user.id);
         } else {
             await message.delete();
-            suspiciousUsers.set(message.author.id, 0);
-            message.author.send(`Обнаружена попытка спама на сервере \`${message.guild.name}\`. Сообщение удалено. Повторная попытка спама приведет к бану.`);
-            Notify(message.guild, `Сторонний пользователь ${message.author.toString()} разместил стороннее приглашение. Сообщение удалено, пользователю выслано предупреждение. Повторная попытка приведет к бану.\n\n**Содержимое сообщения**\`\`\`${message.content}\`\`\``);
+            suspiciousUsers.set(user.id, 0);
+            user.send(`Обнаружена попытка спама на сервере \`${server.name}\`. Сообщение удалено. Повторная попытка спама приведет к бану.`);
+            Notify(server, `Сторонний пользователь ${user.toString()} разместил стороннее приглашение. Сообщение удалено, пользователю выслано предупреждение. Повторная попытка приведет к бану.\n\n**Содержимое сообщения**\`\`\`${message.content}\`\`\``);
         }
     }
     
