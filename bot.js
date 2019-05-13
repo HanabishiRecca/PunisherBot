@@ -63,10 +63,7 @@ const botCommands = {
         if(!message.member.hasPermission(Discord.Permissions.FLAGS.MANAGE_CHANNELS))
             return;
         
-        const
-            channel = message.mentions.channels.first(),
-            info = await serversDb.findOne({ _id: message.guild.id });
-        
+        const channel = message.mentions.channels.first();
         if(channel) {
             const perms = channel.permissionsFor(message.guild.me);
             if(!perms.has(Discord.Permissions.FLAGS.READ_MESSAGES)) {
@@ -77,14 +74,9 @@ const botCommands = {
                 message.reply('нет права на размещение сообщений в указанном канале!');
                 return;
             }
-            
-            if(info)
-                await serversDb.update({ _id: message.guild.id }, { $set: { channel: channel.id } });
-            else
-                await serversDb.insert({ _id: message.guild.id, channel: channel.id });
-            
+            await serversDb.update({ _id: message.guild.id }, { $set: { channel: channel.id } }, { upsert: true });
             message.reply('канал установлен.');
-        } else if(info) {
+        } else {
             await serversDb.update({ _id: message.guild.id }, { $unset: { channel: true } });
             message.reply('канал сброшен.');
         }
@@ -457,7 +449,7 @@ async function Notify(server, msg) {
 client.on('guildMemberAdd', CheckBanned);
 
 client.on('guildCreate', async (server) => {
-    ServiceLog(`**Подключен новый сервер!**\n\`${server.name}\` (${server.id})`);
+    ServiceLog(`**Подключен новый сервер!**\n\`${server.name}\` (${server.id})\nВладелец: ${server.owner.toString()}`);
 });
 client.on('guildDelete', async (server) => {
     ServiceLog(`**Сервер отключен**\n\`${server.name}\` (${server.id})`);
