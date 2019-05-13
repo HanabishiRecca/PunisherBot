@@ -111,7 +111,7 @@ const botCommands = {
                 server = client.guilds.get(userInfo.server);
             
             if(userInfo)
-                message.channel.send(`**Информация**\nПользователь: <@${id}>\nТег: ${(await client.fetchUser(id, false)).tag}\nСервер: ${server ? `${server.name} (${server.id})` : userInfo.server} \nМодератор: <@${userInfo.moder}>\nДата добавления: ${Util.DtString(userInfo.date)}\nПричина: ${userInfo.reason}`);
+                message.channel.send(`**Информация**\nПользователь: <@${id}>\nТег: ${(await client.fetchUser(id, false)).tag}\nСервер: ${server ? `\`${server.name}\` (${server.id})` : userInfo.server} \nМодератор: <@${userInfo.moder}>\nДата добавления: ${Util.DtString(userInfo.date)}\nПричина: ${userInfo.reason}`);
             else
                 message.channel.send(`**Информация**\nПользователь <@${id}> не находится в черном списке.`);
         }
@@ -287,7 +287,7 @@ const botCommands = {
             info = await serversDb.findOne({ _id: id });
         
         if(info && info.trusted) {
-            message.reply(`${server ? `\`сервер ${server.name}\` (${server.id})` : `идентификатор \`${id}\``} уже находится в списке доверенных.`);
+            message.reply(`${server ? `сервер \`${server.name}\` (${server.id})` : `идентификатор \`${id}\``} уже находится в списке доверенных.`);
             return;
         }
         
@@ -296,7 +296,7 @@ const botCommands = {
         else
             await serversDb.insert({ _id: id, trusted: true });
         
-        ServiceLog(`Модератор ${message.author.toString()} добавил ${server ? `\`сервер ${server.name}\` (${server.id})` : `идентификатор \`${id}\``} в список доверенных.`);
+        ServiceLog(`Модератор ${message.author.toString()} добавил ${server ? `сервер \`${server.name}\` (${server.id})` : `идентификатор \`${id}\``} в список доверенных.`);
     },
     
     //Удаление доверенного сервера
@@ -314,13 +314,13 @@ const botCommands = {
             info = await serversDb.findOne({ _id: id });
         
         if(!(info && info.trusted)) {
-            message.reply(`${server ? `\`сервер ${server.name}\` (${server.id})` : `идентификатор \`${id}\``} отсутствует в списке доверенных.`);
+            message.reply(`${server ? `сервер \`${server.name}\` (${server.id})` : `идентификатор \`${id}\``} отсутствует в списке доверенных.`);
             return;
         }
         
         await serversDb.update({ _id: id }, { $unset: { trusted: true } });
         
-        ServiceLog(`Модератор ${message.author.toString()} удалил ${server ? `\`сервер ${server.name}\` (${server.id})` : `идентификатор \`${id}\``} из списка доверенных.`);
+        ServiceLog(`Модератор ${message.author.toString()} удалил ${server ? `сервер \`${server.name}\` (${server.id})` : `идентификатор \`${id}\``} из списка доверенных.`);
     },
     
 };
