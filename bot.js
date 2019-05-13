@@ -483,6 +483,7 @@ client.on('message', async (message) => {
 
 client.on('ready', async () => {
     console.log('READY');
+    client.user.setPresence({ game: { name: `${config.prefix}help`, type: 'WATCHING' } });
     
     //Очистка пустых записей в базе серверов
     serversDb.remove({ trusted: { $exists: false }, channel: { $exists: false } }, { multi: true });
