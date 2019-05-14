@@ -158,14 +158,54 @@ const botCommands = {
         if(!message.member.hasPermission(Discord.Permissions.FLAGS.MANAGE_CHANNELS))
             return;
         
-        let msg = `**Список серверов**\nВсего ${client.guilds.size}\n\`\`\`css\n`;
+        const servers = [];
+        let
+            maxIdLen = 0,
+            maxNameLen = 0;
+        
         for(const server of client.guilds.values()) {
             const info = await serversDb.findOne({ _id: server.id });
-            msg += `[${(info && info.trusted) ? 'v' : ' '}] | ${server.id} | ${server.name}\n`;
+            servers.push({ connected: true, trusted: (info && info.trusted), id: server.id, name: server.name });
+            if(server.id.length > maxIdLen)
+                maxIdLen = server.id.length;
+            if(server.name.length > maxNameLen)
+                maxNameLen = server.name.length;
         }
-        msg += '```';
         
-        message.channel.send(msg);
+        const serversFromDb = await serversDb.find({ trusted: true });
+        for(let i = 0; i < serversFromDb.length; i++) {
+            const server = serversFromDb[i];
+            if(!client.guilds.has(server._id)) {
+                servers.push({ connected: false, trusted: true, id: server._id, name: '' });
+                if(server._id.length > maxIdLen)
+                    maxIdLen = server._id.length;
+            }
+        }
+        
+        servers.sort((a, b) => (a.id > b.id) ? 1 : -1);
+        
+        let text = `**Список серверов**
+Подключено: ${client.guilds.size}
+Всего: ${servers.length}
+\`\`\`css
+| C | T |${' '.repeat(Math.ceil(maxIdLen / 2))}ID${' '.repeat(Math.floor(maxIdLen / 2))}|${' '.repeat(Math.ceil(maxNameLen / 2) - 1)}NAME${' '.repeat(Math.floor(maxNameLen / 2) - 1)}|
+|---|---|${'-'.repeat(maxIdLen + 2)}|${'-'.repeat(maxNameLen + 2)}|
+`;
+        for(let i = 0; i < servers.length; i++) {
+            const
+                server = servers[i],
+                add = `|[${server.connected ? 'v' : ' '}]|[${server.trusted ? 'v' : ' '}]| ${server.id}${' '.repeat(maxIdLen - server.id.length)} | ${server.name}${' '.repeat(maxNameLen - server.name.length)} |\n`;
+            
+            if(text.length + add.length < 1990) {
+                text += add;
+            } else {
+                await message.channel.send(text + '```');
+                text = '```css\n' + add;
+            }
+        }
+        text += '```';
+        
+        message.channel.send(text);
     },
     
     //Ссылка на приглашение бота
