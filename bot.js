@@ -22,10 +22,10 @@ const client = new Discord.Client({
     disabledEvents: ['CHANNEL_PINS_UPDATE', 'MESSAGE_DELETE', 'MESSAGE_UPDATE', 'USER_UPDATE', 'USER_NOTE_UPDATE', 'USER_SETTINGS_UPDATE', 'PRESENCE_UPDATE', 'VOICE_STATE_UPDATE', 'TYPING_START', 'VOICE_SERVER_UPDATE', 'RELATIONSHIP_ADD', 'RELATIONSHIP_REMOVE'],
 });
 client.on('disconnect', Shutdown);
-client.on('error', console.warn);
-client.on('reconnecting', console.log);
-client.on('resume', console.log);
-client.on('rateLimit', console.warn);
+client.on('error', () => console.warn('Connection error!'));
+client.on('reconnecting', () => console.warn('Reconnecting...'));
+client.on('resume', () => console.warn('Connection restored'));
+client.on('rateLimit', () => console.warn('Rate limit!'));
 
 const
     blacklistDb = new Database({ filename: './storage/users.db', autoload: true }),
