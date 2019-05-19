@@ -16,7 +16,7 @@ exports.DtString = dt => `${formatter.format(new Date(dt))} UTC`;
 exports.GetInviteCodes = (str) => {
     const
         result = [],
-        regExp = /discord(?:app\s*\.\s*com\/invite|\s*\.\s*gg(?:\/invite)?)\/([\w-]{2,255})/ig;
+        regExp = /discord(?:app\s*\.\s*com\s*\/\s*invite|\s*\.\s*gg(?:\s*\/\s*invite)?)\s*\/\s*([\w-]{2,255})/ig;
     
     let match;
     while(match = regExp.exec(str))
