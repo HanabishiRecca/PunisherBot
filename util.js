@@ -13,8 +13,15 @@ const formatter = new Intl.DateTimeFormat('ru', {
 });
 exports.DtString = dt => `${formatter.format(new Date(dt))} UTC`;
 
-exports.GetInviteCode = (str) => {
-    const match = str.match(/discord(?:app\s*\.\s*com\/invite|\s*\.\s*gg(?:\/invite)?)\/([\w-]{2,255})/i);
-    if(match && (match.length > 1))
-        return match[1];
+exports.GetInviteCodes = (str) => {
+    const
+        result = [],
+        regExp = /discord(?:app\s*\.\s*com\/invite|\s*\.\s*gg(?:\/invite)?)\/([\w-]{2,255})/ig;
+    
+    let match;
+    while(match = regExp.exec(str))
+        if(match.length > 1)
+            result.push(match[1]);
+    
+    return result;
 }
