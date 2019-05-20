@@ -108,15 +108,17 @@ const botCommands = {
                 continue;
             }
             
+            const userInfo = await blacklistDb.findOne({ _id: user.id });
+            if(!userInfo) {
+                message.channel.send(`**Информация**\nПользователь ${UserToText(user)} не находится в черном списке.`);
+                continue;
+            }
+            
             const
-                userInfo = await blacklistDb.findOne({ _id: user.id }),
                 server = client.guilds.get(userInfo.server),
                 moder = await FetchUser(userInfo.moder);
             
-            if(userInfo)
-                message.channel.send(`**Информация**\nПользователь: ${UserToText(user)}\nСервер: ${server ? ServerToText(server) : userInfo.server}\nМодератор: ${moder ? UserToText(moder) : UserNotExist(moder)}\nДата добавления: ${Util.DtString(userInfo.date)}\nПричина: ${userInfo.reason}`);
-            else
-                message.channel.send(`**Информация**\nПользователь ${UserToText(user)} не находится в черном списке.`);
+            message.channel.send(`**Информация**\nПользователь: ${UserToText(user)}\nСервер: ${server ? ServerToText(server) : userInfo.server}\nМодератор: ${moder ? UserToText(moder) : UserNotExist(moder)}\nДата добавления: ${Util.DtString(userInfo.date)}\nПричина: ${userInfo.reason}`);
         }
     },
     
@@ -486,10 +488,10 @@ async function GetInvite(code) {
 client.on('guildMemberAdd', CheckBanned);
 
 client.on('guildCreate', async (server) => {
-    ServiceLog(`**Подключен новый сервер!**\n${ServerToText(server)}\nВладелец: ${server.owner.toString()}`);
+    ServiceLog(`**Подключен новый сервер!**\n${ServerToText(server)}\nВладелец: ${UserToText(server.owner.user)}`);
 });
 client.on('guildDelete', async (server) => {
-    ServiceLog(`**Сервер отключен**\n\`${ServerToText(server)}`);
+    ServiceLog(`**Сервер отключен**\n${ServerToText(server)}`);
 });
 
 client.on('message', async (message) => {
