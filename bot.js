@@ -336,15 +336,18 @@ async function CheckBanned(member) {
     if(!userInfo)
         return false;
     
-    const server = member.guild;
+    const
+        server = member.guild,
+        user = member.user;
+    
     try {
         await member.ban({ days: 1, reason: userInfo.reason });
     } catch {
-        Notify(server, `Не удалось выдать бан пользователю из черного списка ${UserToText(member.user)}! У бота недостаточно прав, либо роль пользователя находится выше роли бота.`);
+        Notify(server, `Не удалось выдать бан пользователю из черного списка ${UserToText(user)}! У бота недостаточно прав, либо роль пользователя находится выше роли бота.`);
         return true;
     }
     
-    Notify(server, `Пользователю ${UserToText(member.user)} из черного списка выдан автоматический бан!\nУказанная причина: ${userInfo.reason}`);
+    Notify(server, `Пользователю ${UserToText(user)} из черного списка выдан автоматический бан!\nУказанная причина: ${userInfo.reason}`);
     return true;
 }
 
