@@ -258,7 +258,7 @@ const botCommands = {
             
             SpreadBan(user.id, true, reason);
             
-            await blacklistDb.insert({ _id: user.id }, { $set: { server: message.guild.id, moder: message.author.id, date: dt, reason: reason } }, { upsert: true });
+            await blacklistDb.update({ _id: user.id }, { $set: { server: message.guild.id, moder: message.author.id, date: dt, reason: reason } }, { upsert: true });
             message.reply(`пользователь ${UserToText(user)} добавлен в черный список.`);
         }
     },
