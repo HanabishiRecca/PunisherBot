@@ -413,7 +413,7 @@ async function CheckSpam(message) {
             Notify(server, `Злоупотребление инвайтами от пользователя ${UserToText(user)}. Сообщение удалено, пользователю выслано предупреждение.\n\n**Содержимое сообщения**\n${message.content}`);
             clearTimeout(suspiciousUsers.get(user.id));
         }
-        suspiciousUsers.set(user.id, setTimeout(suspiciousUsers.delete, config.suspiciousTimeout, user.id));
+        suspiciousUsers.set(user.id, setTimeout(() => suspiciousUsers.delete(user.id), config.suspiciousTimeout));
     } else {
         if(suspiciousUsers.has(user.id)) {
             await blacklistDb.insert({ _id: user.id, server: server.id, moder: client.user.id, date: Date.now(), reason: 'Автоматически: сторонний пользователь, спам сторонним инвайтом' });
