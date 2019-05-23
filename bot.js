@@ -256,7 +256,7 @@ const botCommands = {
                 continue;
             }
             
-            SpreadBan(user.id, true, reason);
+            SpreadBan(user, true, reason);
             
             await blacklistDb.update({ _id: user.id }, { $set: { server: message.guild.id, moder: message.author.id, date: dt, reason: reason } }, { upsert: true });
             message.reply(`пользователь ${UserToText(user)} добавлен в черный список.`);
@@ -285,7 +285,7 @@ const botCommands = {
             }
             
             await blacklistDb.remove({ _id: user.id });
-            SpreadBan(user.id, false);
+            SpreadBan(user, false);
             message.reply(`пользователь ${UserToText(user)} удален из черного списка.`);
         }
     },
@@ -436,17 +436,17 @@ async function CheckSpam(message) {
 }
 
 //Попытка забанить/разбанить пользователя на всех подключенных серверах
-async function SpreadBan(userId, mode, reason) {
+async function SpreadBan(user, mode, reason) {
     for(const server of client.guilds.values()) {
         if(mode) {
             try {
-                await server.ban(userId, reason);
+                await server.ban(user.id, reason);
             } catch {
                 ServiceLog(`Не удалось забанить пользователя ${UserToText(user)} на сервере ${ServerToText(server)}! У бота недостаточно прав, либо роль пользователя находится выше роли бота.`);
             }
         } else {
             try {
-                await server.unban(userId);
+                await server.unban(user.id);
             } catch {}
         }
     }
