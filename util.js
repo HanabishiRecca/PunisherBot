@@ -25,3 +25,28 @@ exports.GetInviteCodes = (str) => {
     
     return result;
 }
+
+exports.GetNewsTags = (str) => {
+    const
+        result = [],
+        regExp = /\$(\w+)/ig;
+    
+    let match;
+    while(match = regExp.exec(str))
+        if(match.length > 1)
+            result.push(match[1]);
+    
+    return result;
+}
+
+exports.GetFirstNewsTag = (str) => {
+    const match = str.match(/\$(\w+)/i);
+    if(match)
+        return match[1];
+}
+
+exports.ParseJSON = (text) => {
+    try {
+        return JSON.parse(text);
+    } catch {}
+}

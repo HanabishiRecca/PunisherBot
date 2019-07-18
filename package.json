@@ -4,13 +4,11 @@
     "description": "Punisher Bot",
     "repository": {},
     "license": "MIT",
-    "author": "UselessLORD",
-    "contributors": [
-        "Hanabishi"
-    ],
+    "author": "Hanabishi",
+    "contributors": [],
     "main": "bot.js",
     "dependencies": {
-        "discord.js": "^11.5.0",
+        "discord.js": "^11.5.1",
         "intl": "^1.2.5",
         "nedb-promise": "^2.0.1"
     }

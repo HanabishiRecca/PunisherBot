@@ -29,7 +29,9 @@ client.on('rateLimit', () => console.warn('Rate limit!'));
 
 const
     blacklistDb = new Database({ filename: './storage/users.db', autoload: true }),
-    serversDb = new Database({ filename: './storage/servers.db', autoload: true });
+    serversDb = new Database({ filename: './storage/servers.db', autoload: true }),
+    categoriesDb = new Database({ filename: './storage/categories.db', autoload: true }),
+    hooksDb = new Database({ filename: './storage/hooks.db', autoload: true });
 
 const
     RemoveMentions = str => str.replace(Discord.MessageMentions.USERS_PATTERN, ''),
@@ -37,6 +39,8 @@ const
     ServerToText = server => `\`${server.name}\` (${server.id})`,
     UserToText = user => `${user.toString()} (\`${user.tag}\`)`,
     UserNotExist = id => `пользователь с идентификатором \`${id}\` не существует.`,
+    CatNotExist = tag => `категория \`${tag}\` не существует.`,
+    MessageContent = str => `**Содержимое сообщения**\`\`\`${str}\`\`\``,
     IsAdmin = member => member.hasPermission(Discord.Permissions.FLAGS.MANAGE_CHANNELS),
     IsModer = member => member.hasPermission(Discord.Permissions.FLAGS.MANAGE_MESSAGES);
 
@@ -53,13 +57,20 @@ const
     adminHelp = `**Команды администратора**
 \`channel #канал\` - установка канала для информационных сообщений бота. Если канал не указан, параметр будет очищен.
 \`stats\` - показать статистику.
-\`serverlist\` - показать список всех подключенных к боту серверов.`,
+\`serverlist\` - показать список всех подключенных к боту серверов.
+\`subscribe $tag\` - подписаться на категории с указанными тегами. Если теги не указаны, будет осуществлена подписка на все категории.
+\`tags\` - показать список всех доступных новостных категорий.`,
     
     serviceHelp = `**Сервисные команды**
 \`add @user причина\` - добавить указанных пользователей в черный список с указанием причины.
 \`remove @user\` - убрать указанных пользователей из черного списка.
 \`trust id\` - добавить сервер с указанным идентификатором в доверенные.
-\`untrust id\` - убрать сервер с указанным идентификатором из доверенных.`;
+\`untrust id\` - убрать сервер с указанным идентификатором из доверенных.
+\`post $tag {...}\` - разместить новость в указанную категорию с указанным телом сообщения (JSON). Конструктор тела сообщения: <https://leovoel.github.io/embed-visualizer/>
+\`hooks\` - показать список всех активных подписок (вебхуков).
+\`addcat {...}\` - добавить категорию с указанными параметрами. Параметры представляют из себя объект JSON с полями tag, name и avatar.
+\`removecat $tag\` - удалить категорию с указанным тегом.
+\`dumpcat $tag\` - показать информацию о категории с указанным тегом.`;
 
 const botCommands = {
     
@@ -173,8 +184,8 @@ const botCommands = {
         
         const servers = [];
         for(const server of client.guilds.values()) {
-            const info = await serversDb.findOne({ _id: server.id });
-            servers.push({ connected: true, trusted: (info && info.trusted), id: server.id, name: server.name });
+            const serverInfo = await serversDb.findOne({ _id: server.id });
+            servers.push({ connected: true, trusted: (serverInfo && serverInfo.trusted), id: server.id, name: server.name });
         }
         
         const serversFromDb = await serversDb.find({ trusted: true });
@@ -206,7 +217,7 @@ const botCommands = {
     
     //Ссылка на приглашение бота
     link: async (message) => {
-        message.reply(`<${await client.generateInvite(523334)}>`);
+        message.reply(`<${await client.generateInvite(537394246)}>`);
     },
     
     //Справка по боту
@@ -324,7 +335,237 @@ const botCommands = {
         message.reply(`${server ? `сервер ${ServerToText(server)}` : `идентификатор \`${id}\``} удален из списка доверенных.`);
     },
     
+    subscribe: async (message) => {
+        if(!IsAdmin(message.member))
+            return;
+        
+        const
+            match = Util.GetNewsTags(message.content),
+            tags = [];
+        
+        for(let i = 0; i < match.length; i++) {
+            const
+                tag = match[i].toLowerCase(),
+                cat = await categoriesDb.findOne({ _id: tag });
+            
+            if(cat) {
+                tags.push(tag);
+            } else {
+                message.reply(CatNotExist(tag));
+                return;
+            }
+        }
+        
+        const
+            name = `Новости (${tags.length ? tags.join(', ') : 'все'})`,
+            webhook = await CreateWebhook(message.channel, name);
+        
+        if(!webhook) {
+            message.reply('не удалось создать вебхук.');
+            return;
+        }
+        
+        await hooksDb.insert({ _id: webhook.id, token: webhook.token, tags: (tags.length ? tags : undefined) });
+        message.reply(`в текущем канале создана подписка на \`${name}\`.`);
+    },
+    
+    post: async (message) => {
+        if(!((message.guild.id == config.mainServer) && IsAdmin(message.member)))
+            return;
+        
+        const jsonIndex = message.content.indexOf('{');
+        if(jsonIndex < 0) {
+            message.reply('в сообщении не найден JSON.');
+            return;
+        }
+        
+        const obj = Util.ParseJSON(message.content.substring(jsonIndex));
+        if(!obj) {
+            message.reply('некорректный JSON.');
+            return;
+        }
+        
+        try {
+            await message.channel.send(obj.content || '', { embed: obj.embed });
+        } catch {
+            message.reply('не удалось отправить проверочное сообщение.');
+            return;
+        }
+        
+        const match = Util.GetFirstNewsTag(message.content);
+        if(!match)
+            return;
+        
+        const
+            tag = match.toLowerCase(),
+            cat = await categoriesDb.findOne({ _id: tag });
+        
+        if(!cat) {
+            message.reply(CatNotExist(tag));
+            return;
+        }
+        
+        SendNews(tag, obj.content, obj.embed);
+    },
+    
+    tags: async (message) => {
+        if(!IsAdmin(message.member))
+            return;
+        
+        let text = '**Список категорий**\n\n';
+        const categories = await categoriesDb.find({});
+        
+        for(let i = 0; i < categories.length; i++) {
+            const cat = categories[i];
+            text += `\`${cat._id}\` - ${cat.name || client.user.username}\n`;
+        }
+        
+        message.channel.send(text);
+    },
+    
+    hooks: async (message) => {
+        if(!((message.guild.id == config.mainServer) && IsAdmin(message.member)))
+            return;
+        
+        const hooks = await hooksDb.find({});
+        let text = `**Активные подписки**\n\n`;
+        for(let i = 0; i < hooks.length; i++) {
+            const
+                hookInfo = hooks[i],
+                hook = await GetWebhook(hookInfo._id, hookInfo.token);
+            
+            if(!hook) {
+                await hooksDb.remove(hookInfo);
+                continue;
+            }
+            
+            const
+                server = client.guilds.get(hook.guild_id),
+                add = `${server ? ServerToText(server) : hook.guild_id} | ${hookInfo.tags ? `[${hookInfo.tags.join(', ')}]` : 'все категории' }\n`;
+            
+            if(text.length + add.length < 1990) {
+                text += add;
+            } else {
+                await message.channel.send(text);
+                text = add;
+            }
+        }
+        await message.channel.send(text);
+    },
+    
+    addcat: async (message) => {
+        if(!((message.guild.id == config.mainServer) && IsAdmin(message.member)))
+            return;
+        
+        const jsonIndex = message.content.indexOf('{');
+        if(jsonIndex < 0) {
+            message.reply('в сообщении не найден JSON.');
+            return;
+        }
+        
+        const obj = Util.ParseJSON(message.content.substring(jsonIndex));
+        if(!obj) {
+            message.reply('некорректный JSON.');
+            return;
+        }
+        
+        if(typeof(obj.tag) != 'string') {
+            message.reply('необходимо указать тег категории.');
+            return;
+        }
+        
+        const data = {};
+        if(typeof(obj.name) == 'string')
+            data.name = obj.name;
+        
+        if(typeof(obj.avatar) == 'string')
+            data.avatar = obj.avatar;
+        
+        await categoriesDb.update({ _id: obj.tag }, { $set: data }, { upsert: true });
+        
+        message.reply(`категория \`${obj.tag}\` добавлена.`);
+    },
+    
+    removecat: async (message) => {
+        if(!((message.guild.id == config.mainServer) && IsAdmin(message.member)))
+            return;
+        
+        const match = Util.GetFirstNewsTag(message.content);
+        if(!match) {
+            message.reply('необходимо указать категорию для удаления.');
+            return;
+        }
+        
+        const
+            tag = match.toLowerCase(),
+            cat = await categoriesDb.findOne({ _id: tag });
+        
+        if(!cat) {
+            message.reply(CatNotExist(tag));
+            return;
+        }
+        
+        await categoriesDb.remove({ _id: tag });
+        
+        message.reply(`категория \`${tag}\` удалена.`);
+    },
+    
+    dumpcat: async (message) => {
+        if(!((message.guild.id == config.mainServer) && IsAdmin(message.member)))
+            return;
+        
+        const match = Util.GetFirstNewsTag(message.content);
+        if(!match) {
+            message.reply('необходимо указать категорию .');
+            return;
+        }
+        
+        const
+            tag = match.toLowerCase(),
+            cat = await categoriesDb.findOne({ _id: tag });
+        
+        if(!cat) {
+            message.reply(CatNotExist(tag));
+            return;
+        }
+        
+        const obj = { tag };
+        if(cat.name)
+            obj.name = cat.name;
+            
+        if(cat.avatar)
+            obj.avatar = cat.avatar;
+        
+        message.channel.send(JSON.stringify(obj, null, 4));
+    },
 };
+
+async function SendNews(tag, content, embed) {
+    const
+        channels = new Set(),
+        hooks = await hooksDb.find({});
+    
+    hooks.forEach(async (hookInfo) => {
+        const hook = await GetWebhook(hookInfo._id, hookInfo.token);
+        if(!hook) {
+            await hooksDb.remove(hookInfo);
+            return;
+        }
+        
+        if(channels.has(hook.channel_id))
+            return;
+        
+        if(hookInfo.tags && hookInfo.tags.length && (hookInfo.tags.indexOf(tag) < 0))
+            return;
+        
+        const cat = await categoriesDb.findOne({ _id: tag });
+        if(!cat)
+            return;
+        
+        SendWebhookMessage(hookInfo._id, hookInfo.token, cat.name || client.user.username, cat.avatar || client.user.avatarURL, content || '', embed);
+        channels.add(hook.channel_id);
+    });
+}
 
 //Проверка пользователя в черном списке
 async function CheckBanned(member) {
@@ -340,14 +581,9 @@ async function CheckBanned(member) {
         server = member.guild,
         user = member.user;
     
-    try {
-        await member.ban({ days: 1, reason: userInfo.reason });
-    } catch {
-        Notify(server, `Не удалось выдать бан пользователю из черного списка ${UserToText(user)}! У бота недостаточно прав, либо роль пользователя находится выше роли бота.`);
-        return true;
-    }
+    if(await TryBan(server, user, userInfo.reason))
+        Notify(server, `Пользователю ${UserToText(user)} из черного списка выдан автоматический бан!\nУказанная причина: ${userInfo.reason}`);
     
-    Notify(server, `Пользователю ${UserToText(user)} из черного списка выдан автоматический бан!\nУказанная причина: ${userInfo.reason}`);
     return true;
 }
 
@@ -373,8 +609,8 @@ async function CheckSpam(message) {
             continue;
         }
         
-        const info = await serversDb.findOne({ _id: invite.guild.id });
-        if(info && info.trusted) {
+        const serverInfo = await serversDb.findOne({ _id: invite.guild.id });
+        if(serverInfo && serverInfo.trusted) {
             white++;
             continue;
         }
@@ -408,27 +644,25 @@ async function CheckSpam(message) {
     
     if(resident) {
         if(suspiciousUsers.has(user.id)) {
-            await message.delete();
-            user.send(`Обнаружено злоупотребление инвайтами. Сообщение удалено.`);
-            Notify(server, `Злоупотребление инвайтами от пользователя ${UserToText(user)}. Сообщение удалено, пользователю выслано предупреждение.\n\n**Содержимое сообщения**\n${message.content}`);
+            user.send(`Обнаружено злоупотребление инвайтами.`);
+            Notify(server, `Злоупотребление инвайтами от пользователя ${UserToText(user)}.\n\n${MessageContent(message.content)}`);
             clearTimeout(suspiciousUsers.get(user.id));
+            TryDelete(message);
         }
         suspiciousUsers.set(user.id, setTimeout(() => suspiciousUsers.delete(user.id), config.suspiciousTimeout));
     } else {
         if(suspiciousUsers.has(user.id)) {
             await blacklistDb.insert({ _id: user.id, server: server.id, moder: client.user.id, date: Date.now(), reason: 'Автоматически: сторонний пользователь, спам сторонним инвайтом' });
-            Notify(server, `Пользователь ${UserToText(user)} автоматически добавлен в черный список.\n\n**Содержимое сообщения**\n${message.content}`);
-            try {
-                await message.member.ban({ days: 1, reason: 'Автоматический бан' });
-            } catch {
-                Notify(server, `Не удалось забанить пользователя ${UserToText(user)} на сервере! У бота недостаточно прав, либо роль пользователя находится выше роли бота.`);
-            }
-            suspiciousUsers.delete(user.id);
+            Notify(server, `Пользователь ${UserToText(user)} автоматически добавлен в черный список по причине спама.\n\n${MessageContent(message.content)}`);
+            if(await TryBan(server, user, 'Автоматический бан'))
+                suspiciousUsers.delete(user.id);
+            else
+                TryDelete(message);
         } else {
-            await message.delete();
             suspiciousUsers.set(user.id, 0);
-            user.send(`Обнаружена попытка спама на сервере ${ServerToText(server)}. Сообщение удалено. Повторная попытка спама приведет к бану.`);
-            Notify(server, `Сторонний пользователь ${UserToText(user)} разместил стороннее приглашение. Сообщение удалено, пользователю выслано предупреждение. Повторная попытка приведет к бану.\n\n**Содержимое сообщения**\`\`\`${message.content}\`\`\``);
+            user.send(`Обнаружена попытка спама на сервере ${ServerToText(server)}. Повторная попытка спама приведет к бану.`);
+            Notify(server, `Сторонний пользователь ${UserToText(user)} разместил стороннее приглашение. Повторная попытка приведет к бану.\n\n${MessageContent(message.content)}`);
+            TryDelete(message);
         }
     }
     
@@ -437,25 +671,17 @@ async function CheckSpam(message) {
 
 //Попытка забанить/разбанить пользователя на всех подключенных серверах
 async function SpreadBan(user, mode, reason) {
-    for(const server of client.guilds.values()) {
-        if(mode) {
-            try {
-                await server.ban(user.id, reason);
-            } catch {
-                ServiceLog(`Не удалось забанить пользователя ${UserToText(user)} на сервере ${ServerToText(server)}! У бота недостаточно прав, либо роль пользователя находится выше роли бота.`);
-            }
-        } else {
-            try {
-                await server.unban(user.id);
-            } catch {}
-        }
-    }
+    for(const server of client.guilds.values())
+        if(mode)
+            TryBan(server, user, reason);
+        else
+            TryUnban(server, user);
 }
 
 async function SendInfo(server, msg) {
-    const info = await serversDb.findOne({ _id: server.id });
-    if(info && info.channel) {
-        const channel = client.channels.get(info.channel);
+    const serverInfo = await serversDb.findOne({ _id: server.id });
+    if(serverInfo && serverInfo.channel) {
+        const channel = client.channels.get(serverInfo.channel);
         if(channel)
             channel.send(msg);
     }
@@ -468,6 +694,36 @@ async function ServiceLog(msg) {
 async function Notify(server, msg) {
     SendInfo(server, msg);
     ServiceLog(`**Сервер:** ${ServerToText(server)}\n**Событие:**\n${msg}`);
+}
+
+async function TryDelete(message) {
+    try {
+        await message.delete();
+    } catch {
+        Notify(server, `**Не удалось удалить сообщение!**\nСсылка: ${message.url}`);
+        return false;
+    }
+    return true;
+}
+
+async function TryBan(server, user, reason) {
+    try {
+        await server.ban(user.id, { days: 1, reason });
+    } catch {
+        Notify(server, `Не удалось забанить пользователя ${UserToText(user)}!`);
+        return false;
+    }
+    return true;
+}
+
+async function TryUnban(server, user) {
+    try {
+        await server.unban(user.id);
+    } catch {
+        Notify(server, `Не удалось разбанить пользователя ${UserToText(user)}!`);
+        return false;
+    }
+    return true;
 }
 
 async function FetchUser(id) {
@@ -486,6 +742,22 @@ async function GetInvite(code) {
     try {
         return await client.rest.methods.getInvite(code);
     } catch {}
+}
+
+async function CreateWebhook(channel, name, avatar) {
+    try {
+        return await client.rest.makeRequest('post', Discord.Constants.Endpoints.Channel(channel).webhooks, true, { name, avatar });
+    } catch {}
+}
+
+async function GetWebhook(id, token) {
+    try {
+        return await client.rest.makeRequest('get', Discord.Constants.Endpoints.Webhook(id, token));
+    } catch {}
+}
+
+async function SendWebhookMessage(id, token, username, avatar_url, content, embed) {
+    await client.rest.makeRequest('post', Discord.Constants.Endpoints.Webhook(id, token), false, { username, avatar_url, content, embeds: embed ? [embed] : undefined });
 }
 
 client.on('guildMemberAdd', CheckBanned);
@@ -514,7 +786,7 @@ client.on('message', async (message) => {
         return;
     
     const
-        si = message.content.indexOf(' '),
+        si = message.content.search(/(\s|\n|$)/),
         command = botCommands[message.content.substring(config.prefix.length, (si > 0) ? si : undefined).toLowerCase()];
     
     if(command) {
