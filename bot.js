@@ -145,13 +145,13 @@ const botCommands = {
         const users = await blacklistDb.find({});
         
         await message.channel.send(`**Черный список**\nВсего пользователей: ${users.length}\n*Список будет подгружаться частями, это может занять некоторое время.*`);
-        let text = '```py\n';
+        let text = '```cs\n';
         for(let i = 0; i < users.length; i++) {
             const user = await FetchUser(users[i]._id);
             if(!user)
                 continue;
             
-            const add = `${user.toString()} → ${user.tag}\n`;
+            const add = `${user.toString()} → ${Util.ReplaceApostrophe(user.tag)}\n`;
             if(text.length + add.length < 1990) {
                 text += add;
             } else {

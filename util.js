@@ -50,3 +50,5 @@ exports.ParseJSON = (text) => {
         return JSON.parse(text);
     } catch {}
 }
+
+exports.ReplaceApostrophe = (text) => text.replace(/'/g, '’');
