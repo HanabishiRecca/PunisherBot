@@ -11,6 +11,10 @@ function Shutdown(err) {
 if(!process.env.TOKEN)
     Shutdown('Необходим токен!');
 
+const storagePath = process.env.STORAGE;
+if(!storagePath)
+    Shutdown('Необходим путь к хранилищу!');
+
 const
     config = require('./config.json'),
     Util = require('./util.js'),
@@ -19,7 +23,7 @@ const
 
 const client = new Discord.Client({
     messageCacheMaxSize: 1,
-    disabledEvents: ['CHANNEL_PINS_UPDATE', 'MESSAGE_DELETE', 'MESSAGE_UPDATE', 'USER_UPDATE', 'USER_NOTE_UPDATE', 'USER_SETTINGS_UPDATE', 'PRESENCE_UPDATE', 'VOICE_STATE_UPDATE', 'TYPING_START', 'VOICE_SERVER_UPDATE', 'RELATIONSHIP_ADD', 'RELATIONSHIP_REMOVE'],
+    disabledEvents: ['CHANNEL_PINS_UPDATE', 'MESSAGE_DELETE', 'MESSAGE_UPDATE', 'PRESENCE_UPDATE', 'VOICE_STATE_UPDATE', 'TYPING_START', 'VOICE_SERVER_UPDATE', 'RELATIONSHIP_ADD', 'RELATIONSHIP_REMOVE'],
 });
 client.on('disconnect', Shutdown);
 client.on('error', () => console.warn('Connection error!'));
@@ -28,10 +32,10 @@ client.on('resume', () => console.warn('Connection restored'));
 client.on('rateLimit', () => console.warn('Rate limit!'));
 
 const
-    blacklistDb = new Database({ filename: './storage/users.db', autoload: true }),
-    serversDb = new Database({ filename: './storage/servers.db', autoload: true }),
-    categoriesDb = new Database({ filename: './storage/categories.db', autoload: true }),
-    hooksDb = new Database({ filename: './storage/hooks.db', autoload: true });
+    blacklistDb = new Database({ filename: `${storagePath}/blacklist.db`, autoload: true }),
+    serversDb = new Database({ filename: `${storagePath}/servers.db`, autoload: true }),
+    categoriesDb = new Database({ filename: `${storagePath}/categories.db`, autoload: true }),
+    hooksDb = new Database({ filename: `${storagePath}/hooks.db`, autoload: true });
 
 const
     RemoveMentions = str => str.replace(Discord.MessageMentions.USERS_PATTERN, ''),
