@@ -594,6 +594,10 @@ async function CheckBanned(member) {
 const suspiciousUsers = new Map();
 //Проверка сообщения на спам инвайтами
 async function CheckSpam(message) {
+    //Не трогаем ботов
+    if(message.author.bot)
+        return false;
+    
     //Не трогаем админсостав
     if(IsModer(message.member))
         return false;
