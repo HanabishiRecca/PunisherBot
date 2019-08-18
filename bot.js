@@ -652,10 +652,10 @@ async function CheckSpam(message) {
     
     if(resident) {
         if(suspiciousUsers.has(user.id)) {
-            user.send(`Обнаружено злоупотребление инвайтами.`);
             Notify(server, `Злоупотребление инвайтами от пользователя ${UserToText(user)}.\n\n${MessageContent(message.content)}`);
             clearTimeout(suspiciousUsers.get(user.id));
             TryDelete(message);
+            TrySendToUser(user, `Обнаружено злоупотребление инвайтами.`);
         }
         suspiciousUsers.set(user.id, setTimeout(() => suspiciousUsers.delete(user.id), config.suspiciousTimeout));
     } else {
@@ -668,9 +668,9 @@ async function CheckSpam(message) {
                 TryDelete(message);
         } else {
             suspiciousUsers.set(user.id, 0);
-            user.send(`Обнаружена попытка спама на сервере ${ServerToText(server)}. Повторная попытка спама приведет к бану.`);
             Notify(server, `Сторонний пользователь ${UserToText(user)} разместил стороннее приглашение. Повторная попытка приведет к бану.\n\n${MessageContent(message.content)}`);
             TryDelete(message);
+            TrySendToUser(user, `Обнаружена попытка спама на сервере ${ServerToText(server)}. Повторная попытка спама приведет к бану.`);
         }
     }
     
@@ -709,6 +709,15 @@ async function TryDelete(message) {
         await message.delete();
     } catch {
         Notify(server, `**Не удалось удалить сообщение!**\nСсылка: ${message.url}`);
+        return false;
+    }
+    return true;
+}
+
+async function TrySendToUser(user, message) {
+    try {
+        await user.send(message);
+    } catch {
         return false;
     }
     return true;
