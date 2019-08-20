@@ -156,7 +156,7 @@ const botCommands = {
                 text += add;
             } else {
                 await message.channel.send(text + '```');
-                text = '```py\n' + add;
+                text = '```cs\n' + add;
             }
         }
         await message.channel.send(text + '```');
