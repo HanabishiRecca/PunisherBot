@@ -19,7 +19,8 @@ const
     config = require('./config.json'),
     Util = require('./util.js'),
     Discord = require('discord.js'),
-    Database = require('nedb-promise');
+    Database = require('nedb-promise'),
+    fs = require('fs');
 
 const client = new Discord.Client({
     messageCacheMaxSize: 1,
@@ -276,6 +277,8 @@ const botCommands = {
             await blacklistDb.update({ _id: user.id }, { $set: { server: message.guild.id, moder: message.author.id, date: dt, reason: reason } }, { upsert: true });
             message.reply(`пользователь ${UserToText(user)} добавлен в черный список.`);
         }
+        
+        PushBlacklist();
     },
     
     //Удаление из черного списка
@@ -303,6 +306,8 @@ const botCommands = {
             SpreadBan(user, false);
             message.reply(`пользователь ${UserToText(user)} удален из черного списка.`);
         }
+        
+        PushBlacklist();
     },
     
     //Добавление доверенного сервера
@@ -536,7 +541,7 @@ const botCommands = {
         const obj = { tag };
         if(cat.name)
             obj.name = cat.name;
-            
+        
         if(cat.avatar)
             obj.avatar = cat.avatar;
         
@@ -666,6 +671,9 @@ async function CheckSpam(message) {
                 suspiciousUsers.delete(user.id);
             else
                 TryDelete(message);
+            
+            await TryBan(client.guild.get(config.mainServer), user, 'Автоматический бан');
+            PushBlacklist();
         } else {
             suspiciousUsers.set(user.id, 0);
             Notify(server, `Сторонний пользователь ${UserToText(user)} разместил стороннее приглашение. Повторная попытка приведет к бану.\n\n${MessageContent(message.content)}`);
@@ -725,7 +733,7 @@ async function TrySendToUser(user, message) {
 
 async function TryBan(server, user, reason) {
     try {
-        await server.ban(user.id, { days: 1, reason });
+        await server.ban(user, { days: 1, reason });
     } catch {
         Notify(server, `Не удалось забанить пользователя ${UserToText(user)}!`);
         return false;
@@ -735,7 +743,7 @@ async function TryBan(server, user, reason) {
 
 async function TryUnban(server, user) {
     try {
-        await server.unban(user.id);
+        await server.unban(user);
     } catch {
         Notify(server, `Не удалось разбанить пользователя ${UserToText(user)}!`);
         return false;
@@ -777,13 +785,76 @@ async function SendWebhookMessage(id, token, username, avatar_url, content, embe
     await client.rest.makeRequest('post', Discord.Constants.Endpoints.Webhook(id, token), false, { username, avatar_url, content, embeds: embed ? [embed] : undefined });
 }
 
-client.on('guildMemberAdd', CheckBanned);
+async function PushServerList() {
+    if(!process.env.WEB_DIR)
+        return;
+    
+    const
+        servers = client.guilds.array(),
+        output = [];
+    
+    for(let i = 0; i < servers.length; i++) {
+        const
+            server = servers[i],
+            serverInfo = await serversDb.findOne({ _id: server.id });
+        
+        output.push({
+            id: server.id,
+            name: server.name,
+            users: server.memberCount,
+            image: server.icon,
+            trusted: serverInfo ? serverInfo.trusted : false,
+        });
+    }
+    
+    fs.writeFileSync(`${process.env.WEB_DIR}/servers.json`, JSON.stringify(output));
+    console.log('Write server list');
+}
+
+async function PushBlacklist() {
+    if(!process.env.WEB_DIR)
+        return;
+    
+    const
+        bans = (await client.guilds.get(config.mainServer).fetchBans(true)).array(),
+        output = [];
+    
+    for(let i = 0; i < bans.length; i++) {
+        const banInfo = bans[i];
+        output.push({
+            id: banInfo.user.id,
+            username: banInfo.user.username,
+            discriminator: banInfo.user.discriminator,
+            avatar: banInfo.user.avatar,
+            reason: banInfo.reason,
+        });
+    }
+    
+    fs.writeFileSync(`${process.env.WEB_DIR}/blacklist.json`, JSON.stringify(output));
+    console.log('Write blacklist');
+}
+
+client.on('guildMemberAdd', async (member) => {
+    CheckBanned(member);
+    PushServerList();
+});
+
+client.on('guildMemberRemove', async () => {
+    PushServerList();
+});
 
 client.on('guildCreate', async (server) => {
     ServiceLog(`**Подключен новый сервер!**\n${ServerToText(server)}\nВладелец: ${UserToText(server.owner.user)}`);
+    PushServerList();
 });
+
 client.on('guildDelete', async (server) => {
     ServiceLog(`**Сервер отключен**\n${ServerToText(server)}`);
+    PushServerList();
+});
+
+client.on('guildUpdate', async () => {
+    PushServerList();
 });
 
 client.on('message', async (message) => {
@@ -816,8 +887,8 @@ client.on('ready', async () => {
     console.log('READY');
     client.user.setPresence({ game: { name: `${config.prefix}help`, type: 'WATCHING' } });
     
-    //Очистка пустых записей в базе серверов
-    serversDb.remove({ trusted: { $exists: false }, channel: { $exists: false } }, { multi: true });
+    PushServerList();
+    PushBlacklist();
 });
 
 client.login(process.env.TOKEN);
