@@ -808,7 +808,6 @@ async function PushServerList() {
     }
     
     fs.writeFileSync(`${process.env.WEB_DIR}/servers.json`, JSON.stringify(output));
-    console.log('Write server list');
 }
 
 async function PushBlacklist() {
@@ -831,7 +830,6 @@ async function PushBlacklist() {
     }
     
     fs.writeFileSync(`${process.env.WEB_DIR}/blacklist.json`, JSON.stringify(output));
-    console.log('Write blacklist');
 }
 
 client.on('guildMemberAdd', async (member) => {
@@ -886,6 +884,8 @@ client.on('message', async (message) => {
 client.on('ready', async () => {
     console.log('READY');
     client.user.setPresence({ game: { name: `${config.prefix}help`, type: 'WATCHING' } });
+    
+    require('http').createServer((_, res) => res.end('ONLINE')).listen(21240);
     
     PushServerList();
     PushBlacklist();
