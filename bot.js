@@ -659,7 +659,7 @@ async function CheckSpam(message) {
         if(suspiciousUsers.has(user.id)) {
             Notify(server, `Злоупотребление инвайтами от пользователя ${UserToText(user)}.\n\n${MessageContent(message.content)}`);
             clearTimeout(suspiciousUsers.get(user.id));
-            TryDelete(message);
+            TryDelete(server, message);
             TrySendToUser(user, `Обнаружено злоупотребление инвайтами.`);
         }
         suspiciousUsers.set(user.id, setTimeout(() => suspiciousUsers.delete(user.id), config.suspiciousTimeout));
@@ -670,14 +670,14 @@ async function CheckSpam(message) {
             if(await TryBan(server, user, 'Автоматический бан'))
                 suspiciousUsers.delete(user.id);
             else
-                TryDelete(message);
+                TryDelete(server, message);
             
-            await TryBan(client.guild.get(config.mainServer), user, 'Автоматический бан');
+            await TryBan(client.guilds.get(config.mainServer), user, 'Автоматический бан');
             PushBlacklist();
         } else {
             suspiciousUsers.set(user.id, 0);
             Notify(server, `Сторонний пользователь ${UserToText(user)} разместил стороннее приглашение. Повторная попытка приведет к бану.\n\n${MessageContent(message.content)}`);
-            TryDelete(message);
+            TryDelete(server, message);
             TrySendToUser(user, `Обнаружена попытка спама на сервере ${ServerToText(server)}. Повторная попытка спама приведет к бану.`);
         }
     }
@@ -712,7 +712,7 @@ async function Notify(server, msg) {
     ServiceLog(`**Сервер:** ${ServerToText(server)}\n**Событие:**\n${msg}`);
 }
 
-async function TryDelete(message) {
+async function TryDelete(server, message) {
     try {
         await message.delete();
     } catch {
