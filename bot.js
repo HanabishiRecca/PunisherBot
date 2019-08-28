@@ -893,6 +893,10 @@ client.on('ready', async () => {
     
     PushServerList();
     PushBlacklist();
+    
+    client.setInterval(() => {
+        PushBlacklist();
+    }, 3600000);
 });
 
 client.login(process.env.TOKEN);
