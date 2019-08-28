@@ -325,6 +325,8 @@ const botCommands = {
         
         await serversDb.update({ _id: id }, { $set: { trusted: true } }, { upsert: true });
         message.reply(`${server ? `сервер ${ServerToText(server)}` : `идентификатор \`${id}\``} добавлен в список доверенных.`);
+        
+        PushServerList();
     },
     
     //Удаление доверенного сервера
@@ -342,6 +344,8 @@ const botCommands = {
         
         await serversDb.update({ _id: id }, { $unset: { trusted: true } });
         message.reply(`${server ? `сервер ${ServerToText(server)}` : `идентификатор \`${id}\``} удален из списка доверенных.`);
+        
+        PushServerList();
     },
     
     subscribe: async (message) => {
