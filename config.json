@@ -3,5 +3,6 @@
     "banJoinPeriod": 86400000,
     "suspiciousTimeout": 60000,
     "mainServer": "573113895057752085",
-    "serviceChannel": "575613776267837441"
+    "serviceChannel": "575613776267837441",
+    "panelUrl": "https://punisher.mircloud.host/"
 }

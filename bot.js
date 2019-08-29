@@ -50,6 +50,8 @@ const
     IsModer = member => member.hasPermission(Discord.Permissions.FLAGS.MANAGE_MESSAGES);
 
 const
+    headerHelp = `**Информационная панель бота** → ${config.panelUrl}`,
+    
     userHelp = `**Команды пользователя**
 \`link\` - показать ссылку на приглашение бота.
 \`help\` - показать данное справочное сообщение.`,
@@ -67,8 +69,8 @@ const
 \`tags\` - показать список всех доступных новостных категорий.`,
     
     serviceHelp = `**Сервисные команды**
-\`add @user причина\` - добавить указанных пользователей в черный список с указанием причины.
-\`remove @user\` - убрать указанных пользователей из черного списка.
+\`ban @user причина\` - добавить указанных пользователей в черный список с указанием причины.
+\`unban @user\` - убрать указанных пользователей из черного списка.
 \`trust id\` - добавить сервер с указанным идентификатором в доверенные.
 \`untrust id\` - убрать сервер с указанным идентификатором из доверенных.
 \`post $tag {...}\` - разместить новость в указанную категорию с указанным телом сообщения (JSON). Конструктор тела сообщения: <https://leovoel.github.io/embed-visualizer/>
@@ -180,8 +182,7 @@ const botCommands = {
         if(!IsAdmin(message.member))
             return;
         
-        const count = await blacklistDb.count({});
-        message.channel.send(`**Статистика**\nПользователей в черном списке: ${count}\nПодключено серверов: ${client.guilds.size}`);
+        message.channel.send(`**Статистика**\nПользователей в черном списке: ${await blacklistDb.count({})}\nПодключено серверов: ${client.guilds.size}`);
     },
     
     //Выдача списка всех подключенных серверов
@@ -229,7 +230,7 @@ const botCommands = {
     
     //Справка по боту
     help: async (message) => {
-        let text = `**Справка**\n\n${userHelp}\n\n`;
+        let text = `**Справка**\n\n${headerHelp}\n\n${userHelp}\n\n`;
         
         if(IsModer(message.member))
             text += `${moderHelp}\n\n`;
@@ -245,7 +246,7 @@ const botCommands = {
     
     //Суперадминские команды, работают только на главном сервере
     //Добавление в черный список
-    add: async (message) => {
+    ban: async (message) => {
         if(!((message.guild.id == config.mainServer) && IsAdmin(message.member)))
             return;
         
@@ -284,7 +285,7 @@ const botCommands = {
     },
     
     //Удаление из черного списка
-    remove: async (message) => {
+    unban: async (message) => {
         if(!((message.guild.id == config.mainServer) && IsAdmin(message.member)))
             return;
         
