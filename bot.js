@@ -143,16 +143,18 @@ const botCommands = {
         if(!IsModer(message.member))
             return;
         
-        const users = await blacklistDb.find({});
+        let text = '**Черный список**\n```cs\n';
         
-        await message.channel.send(`**Черный список**\nВсего пользователей: ${users.length}\n*Список будет подгружаться частями, это может занять некоторое время.*`);
-        let text = '```cs\n';
-        for(let i = 0; i < users.length; i++) {
-            const user = await FetchUser(users[i]._id);
-            if(!user)
+        const bans = (await client.guilds.get(config.mainServer).fetchBans(true)).array();
+        for(let i = 0; i < bans.length; i++) {
+            const
+                banInfo = bans[i],
+                userInfo = await blacklistDb.findOne({ _id: banInfo.user.id });
+            
+            if(!userInfo)
                 continue;
             
-            const add = `${user.toString()} → ${Util.ReplaceApostrophe(user.tag)}\n`;
+            const add = `${banInfo.user.id} → ${Util.ReplaceApostrophe(banInfo.user.username)}#${banInfo.user.discriminator}\n`;
             if(text.length + add.length < 1990) {
                 text += add;
             } else {
@@ -823,13 +825,19 @@ async function PushBlacklist() {
         output = [];
     
     for(let i = 0; i < bans.length; i++) {
-        const banInfo = bans[i];
+        const
+            banInfo = bans[i],
+            userInfo = await blacklistDb.findOne({ _id: banInfo.user.id });
+        
+        if(!userInfo)
+            continue;
+        
         output.push({
             id: banInfo.user.id,
             username: banInfo.user.username,
             discriminator: banInfo.user.discriminator,
             avatar: banInfo.user.avatar,
-            reason: banInfo.reason,
+            reason: userInfo.reason,
         });
     }
     
