@@ -1,4 +1,4 @@
-"use strict";
+'use strict';
 
 const Intl = require('intl');
 
@@ -13,7 +13,21 @@ const formatter = new Intl.DateTimeFormat('ru', {
 });
 exports.DtString = dt => `${formatter.format(new Date(dt))} UTC`;
 
-exports.GetInviteCodes = (str) => {
+exports.GetFirstUserMention = str => {
+    const match = str.match(/<@!?([0-9]+)>/);
+    if(match)
+        return match[1];
+};
+
+exports.RemoveMentions = str => str.replace(/<@!?[0-9]+>/g, '');
+
+exports.GetFirstChannelMention = str => {
+    const match = str.match(/<#([0-9]+)>/);
+    if(match)
+        return match[1];
+};
+
+exports.GetInviteCodes = str => {
     const
         result = [],
         regExp = /discord(?:app\s*\.\s*com\s*\/\s*invite|\s*\.\s*gg(?:\s*\/\s*invite)?)\s*\/\s*([\w-]{2,255})/ig;
@@ -26,7 +40,7 @@ exports.GetInviteCodes = (str) => {
     return result;
 }
 
-exports.GetNewsTags = (str) => {
+exports.GetNewsTags = str => {
     const
         result = [],
         regExp = /\$(\w+)/ig;
@@ -39,7 +53,7 @@ exports.GetNewsTags = (str) => {
     return result;
 }
 
-exports.GetFirstNewsTag = (str) => {
+exports.GetFirstNewsTag = str => {
     const match = str.match(/\$(\w+)/i);
     if(match)
         return match[1];
@@ -51,4 +65,4 @@ exports.ParseJSON = (text) => {
     } catch {}
 }
 
-exports.ReplaceApostrophe = (text) => text.replace(/'/g, '’');
+exports.ReplaceApostrophe = text => text.replace(/'/g, '’');
