@@ -723,42 +723,44 @@ const CheckSpam = async message => {
     return true;
 };
 
-let clientStarting = true;
-const CheckReady = () => {
-    for(const server of ConnectedServers.values())
-        if(server.unavailable)
-            return;
-    
-    clientStarting = false;
-    
-    PushBlacklist();
-    PushServerList();
-    
-    client.setInterval(() => {
-        PushBlacklist();
-    }, 3600000);
-    
-    console.log('READY');
-};
-
 const events = {
     READY: async data => {
-        console.log('INITED');
+        console.log('INIT');
         
         if(client.user)
             return;
         
         client.user = data.user;
-        
-        const servers = data.guilds;
-        for(let i = 0; i < servers.length; i++) {
-            const server = servers[i];
-            ConnectedServers.set(server.id, server);
-        }
-        
         client.ws.send({ op: 3, d: { status: { web: 'online' }, game: { name: `${config.prefix}help`, type: 3 }, afk: false, since: 0 } });
         
-        require('http').createServer((_, res) => res.end('ONLINE')).listen(21240);
+        const ClientReady = () => {
+            require('http').createServer((_, res) => res.end('ONLINE')).listen(21240);
+            
+            PushBlacklist();
+            PushServerList();
+            
+            client.setInterval(() => {
+                PushBlacklist();
+            }, 3600000);
+            
+            console.log('READY');
+        };
+        
+        const
+            serverCount = data.guilds.length,
+            origFunc = events.GUILD_CREATE;
+        
+        let connected = 0;
+        events.GUILD_CREATE = async server => {
+            ConnectedServers.set(server.id, server);
+            connected++;
+            
+            if(connected < serverCount)
+                return;
+            
+            events.GUILD_CREATE = origFunc;
+            ClientReady();
+        };
     },
     
     MESSAGE_CREATE: async message => {
@@ -802,12 +804,6 @@ const events = {
     },
     
     GUILD_CREATE: async server => {
-        if(clientStarting) {
-            ConnectedServers.set(server.id, server);
-            CheckReady();
-            return;
-        }
-        
         ConnectedServers.set(server.id, server);
         ServiceLog(`**Подключен новый сервер!**\n${ServerToText(server)}\nВладелец: ${UserToText(server.owner.user)}`);
         PushServerList();
