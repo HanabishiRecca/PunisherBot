@@ -804,8 +804,8 @@ const events = {
     
     GUILD_CREATE: async server => {
         ConnectedServers.set(server.id, server);
-        ServiceLog(`**Подключен новый сервер!**\n${ServerToText(server)}\nВладелец: ${UserToText(server.owner.user)}`);
         PushServerList();
+        ServiceLog(`**Подключен новый сервер!**\n${ServerToText(server)}\nВладелец: ${UserToText(await GetUser(server.owner_id))}`);
     },
     
     GUILD_DELETE: async server => {
