@@ -51,7 +51,6 @@ const
     FLAGS = Discord.Permissions.FLAGS,
     ConnectedServers = new Map(),
     SuspiciousUsers = new Map(),
-    GetServer = serverId => ConnectedServers.get(serverId),
     SafePromise = promise => new Promise(resolve => promise.then(result => resolve(result)).catch(() => resolve(null)));
 
 const
@@ -276,7 +275,7 @@ const botCommands = {
             return message.reply(`**Информация**\nПользователь ${UserToText(user)} не находится в черном списке.`);
         
         const
-            server = GetServer(userInfo.server),
+            server = ConnectedServers.get(userInfo.server),
             moder = await SafePromise(GetUser(userInfo.moder));
         
         message.reply(`**Информация**\nПользователь: ${UserToText(user)}\nСервер: ${server ? ServerToText(server) : userInfo.server}\nМодератор: ${moder ? UserToText(moder) : UserNotExist(moder)}\nДата добавления: ${Util.DtString(userInfo.date)}\nПричина: ${userInfo.reason}`);
@@ -432,7 +431,7 @@ const botCommands = {
         
         const
             serverId = match[0],
-            server = GetServer(serverId);
+            server = ConnectedServers.get(serverId);
         
         if(!server)
             return message.reply(`сервер с идентификатором \`${serverId}\` не подключен.`, true);
@@ -453,7 +452,7 @@ const botCommands = {
         
         const
             serverId = match[0],
-            server = GetServer(serverId);
+            server = ConnectedServers.get(serverId);
         
         if(!(await serversDb.findOne({ _id: serverId })))
             return message.reply('указанный сервер отсутствует в списке доверенных.', true);
@@ -554,7 +553,7 @@ const botCommands = {
             }
             
             const
-                server = GetServer(hook.guild_id),
+                server = ConnectedServers.get(hook.guild_id),
                 add = `${server ? ServerToText(server) : hook.guild_id} | ${hookInfo.tags ? `[${hookInfo.tags.join(', ')}]` : 'все' }\n`;
             
             if(text.length + add.length < 1990) {
@@ -770,7 +769,7 @@ const events = {
         if(message.author.id == client.user.id)
             return;
         
-        message.server = GetServer(message.guild_id);
+        message.server = ConnectedServers.get(message.guild_id);
         message.reply = (content, mention) => SendMessage(message.channel_id, mention ? `${UserMention(message.author)}, ${content}` : content);
         
         if(await CheckBanned(message))
