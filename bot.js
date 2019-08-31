@@ -640,16 +640,16 @@ const botCommands = {
     },
 };
 
-const CheckBanned = async message => {
-    if(IsModer(message.server, message.member))
+const CheckBanned = async member => {
+    if(IsModer(member.server, member))
         return false;
     
-    const userInfo = await blacklistDb.findOne({ _id: message.author.id });
+    const userInfo = await blacklistDb.findOne({ _id: member.user.id });
     if(!userInfo)
         return false;
     
-    if(await TryBan(message.server, message.author, userInfo.reason))
-        Notify(message.server, `Пользователю ${UserToText(message.author)} из черного списка выдан автоматический бан!\n\`${userInfo.reason}\``);
+    if(await TryBan(member.server, member.user, userInfo.reason))
+        Notify(member.server, `Пользователю ${UserToText(member.user)} из черного списка выдан автоматический бан!\n\`${userInfo.reason}\``);
     
     return true;
 };
@@ -769,10 +769,11 @@ const events = {
         if(message.author.id == client.user.id)
             return;
         
-        message.server = ConnectedServers.get(message.guild_id);
+        message.server = message.member.server = ConnectedServers.get(message.guild_id);
+        message.member.user = message.author;
         message.reply = (content, mention) => SendMessage(message.channel_id, mention ? `${UserMention(message.author)}, ${content}` : content);
         
-        if(await CheckBanned(message))
+        if(await CheckBanned(message.member))
             return;
         
         if(await CheckSpam(message))
@@ -794,6 +795,7 @@ const events = {
     },
     
     GUILD_MEMBER_ADD: async member => {
+        member.server = ConnectedServers.get(member.guild_id);
         CheckBanned(member);
         PushServerList();
     },
@@ -818,7 +820,6 @@ const events = {
         ConnectedServers.set(server.id, server);
         PushServerList();
     },
-    
 };
 
 client.on('raw', async packet => {
