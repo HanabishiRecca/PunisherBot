@@ -316,8 +316,8 @@ const botCommands = {
         if(!(limit && (limit > 0)))
             return;
         
-        const messages = (await client.rest.makeRequest('get', Endpoints.Channel(channel).messages, true, { limit })).map(m => m.id);
-        client.rest.makeRequest('post', Endpoints.Channel(channel).messages.bulkDelete, true, { messages });
+        const messages = (await client.rest.makeRequest('get', Endpoints.Channel(message.channel_id).messages, true, { limit })).map(m => m.id);
+        client.rest.makeRequest('post', Endpoints.Channel(message.channel_id).messages.bulkDelete, true, { messages });
     },
     
     stats: async message => {
