@@ -728,8 +728,7 @@ const events = {
     READY: async data => {
         console.log('INIT');
         
-        if(client.user)
-            return;
+        ConnectedServers.clear();
         
         client.user = data.user;
         client.ws.send({ op: 3, d: { status: { web: 'online' }, game: { name: `${config.prefix}help`, type: 3 }, afk: false, since: 0 } });
@@ -753,6 +752,8 @@ const events = {
         
         let connected = 0;
         events.GUILD_CREATE = async server => {
+            server.members = null;
+            server.presences = null;
             ConnectedServers.set(server.id, server);
             connected++;
             
