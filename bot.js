@@ -805,7 +805,11 @@ const events = {
     },
     
     GUILD_MEMBER_REMOVE: async member => {
-        ConnectedServers.get(member.guild_id).member_count--;
+        const server = ConnectedServers.get(member.guild_id);
+        if(!server)
+            return;
+        
+        server.member_count--;
         PushServerList();
     },
     
