@@ -796,28 +796,31 @@ const events = {
     
     GUILD_MEMBER_ADD: async member => {
         member.server = ConnectedServers.get(member.guild_id);
+        member.server.member_count++;
         CheckBanned(member);
         PushServerList();
     },
     
-    GUILD_MEMBER_REMOVE: async () => {
+    GUILD_MEMBER_REMOVE: async member => {
+        ConnectedServers.get(member.guild_id).member_count--;
         PushServerList();
     },
     
     GUILD_CREATE: async server => {
+        events.GUILD_UPDATE(server);
+        ServiceLog(`**Подключен новый сервер!**\n${ServerToText(server)}\nВладелец: ${UserToText(await GetUser(server.owner_id))}`);
+    },
+    
+    GUILD_UPDATE: async server => {
+        server.members = null;
+        server.presences = null;
         ConnectedServers.set(server.id, server);
         PushServerList();
-        ServiceLog(`**Подключен новый сервер!**\n${ServerToText(server)}\nВладелец: ${UserToText(await GetUser(server.owner_id))}`);
     },
     
     GUILD_DELETE: async server => {
         ConnectedServers.delete(server.id);
         ServiceLog(`**Сервер отключен**\n${ServerToText(server)}`);
-        PushServerList();
-    },
-    
-    GUILD_UPDATE: async server => {
-        ConnectedServers.set(server.id, server);
         PushServerList();
     },
 };
