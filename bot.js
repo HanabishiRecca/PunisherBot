@@ -77,15 +77,17 @@ const
     UserTag = user => `${user.username}#${user.discriminator}`,
     UserToText = user => `${UserMention(user)} (\`${UserTag(user)}\`)`;
 
-const HasPermission = async (server, member, flag) => {
+const HasPermission = async (member, flag) => {
     const serverRoles = new Map();
-    for(let i = 0; i < server.roles.length; i++) {
-        const role = server.roles[i];
+    let roles = member.server.roles;
+    for(let i = 0; i < roles.length; i++) {
+        const role = roles[i];
         serverRoles.set(role.id, role);
     }
     
-    for(let i = 0; i < member.roles.length; i++) {
-        const role = serverRoles.get(member.roles[i]);
+    roles = member.roles;
+    for(let i = 0; i < roles.length; i++) {
+        const role = serverRoles.get(roles[i]);
         if(role && CheckPermission(role.permissions, flag))
             return true;
     }
@@ -94,8 +96,8 @@ const HasPermission = async (server, member, flag) => {
 };
 
 const
-    IsAdmin = (server, member) => HasPermission(server, member, Discord.Permissions.FLAGS.MANAGE_CHANNELS),
-    IsModer = (server, member) => HasPermission(server, member, Discord.Permissions.FLAGS.MANAGE_MESSAGES),
+    IsAdmin = member => HasPermission(member, Discord.Permissions.FLAGS.MANAGE_CHANNELS),
+    IsModer = member => HasPermission(member, Discord.Permissions.FLAGS.MANAGE_MESSAGES),
     ServiceLog = msg => SendMessage(config.serviceChannel, msg);
 
 const TryBan = async (server, user, reason) => {
@@ -243,7 +245,7 @@ ${config.panelUrl}`,
 
 const botCommands = {
     channel: async message => {
-        if(!IsAdmin(message.server, message.member))
+        if(!IsAdmin(message.member))
             return;
         
         const channelId = Util.GetFirstChannelMention(message.content);
@@ -259,7 +261,7 @@ const botCommands = {
     },
     
     info: async message => {
-        if(!IsModer(message.server, message.member))
+        if(!IsModer(message.member))
             return;
         
         const userId = Util.GetFirstUserMention(message.content);
@@ -282,7 +284,7 @@ const botCommands = {
     },
     
     blacklist: async message => {
-        if(!IsModer(message.server, message.member))
+        if(!IsModer(message.member))
             return;
         
         const bans = await GetBans(config.mainServer);
@@ -307,7 +309,7 @@ const botCommands = {
     },
     
     cleanup: async message => {
-        if(!IsModer(message.server, message.member))
+        if(!IsModer(message.member))
             return;
         
         const limit = parseInt(message.content);
@@ -319,14 +321,14 @@ const botCommands = {
     },
     
     stats: async message => {
-        if(!IsAdmin(message.server, message.member))
+        if(!IsAdmin(message.member))
             return;
         
         message.reply(`**Статистика**\nПользователей в черном списке: ${await blacklistDb.count({})}\nПодключено серверов: ${ConnectedServers.size}`);
     },
     
     serverlist: async message => {
-        if(!IsAdmin(message.server, message.member))
+        if(!IsAdmin(message.member))
             return;
         
         const servers = [...ConnectedServers.values()];
@@ -354,20 +356,20 @@ const botCommands = {
     help: async message => {
         let text = `**Справка**\n\n${headerHelp}\n\n${userHelp}\n\n`;
         
-        if(IsModer(message.server, message.member))
+        if(IsModer(message.member))
             text += `${moderHelp}\n\n`;
         
-        if(IsAdmin(message.server, message.member))
+        if(IsAdmin(message.member))
             text += `${adminHelp}\n\n`;
         
-        if((message.server.id == config.mainServer) && IsAdmin(message.server, message.member))
+        if((message.server.id == config.mainServer) && IsAdmin(message.member))
             text += `${serviceHelp}\n\n`;
         
         message.reply(text);
     },
     
     ban: async message => {
-        if(!((message.server.id == config.mainServer) && IsAdmin(message.server, message.member)))
+        if(!((message.server.id == config.mainServer) && IsAdmin(message.member)))
             return;
         
         const userId = Util.GetFirstUserMention(message.content);
@@ -395,7 +397,7 @@ const botCommands = {
     },
     
     unban: async message => {
-        if(!((message.server.id == config.mainServer) && IsAdmin(message.server, message.member)))
+        if(!((message.server.id == config.mainServer) && IsAdmin(message.member)))
             return;
         
         const userId = Util.GetFirstUserMention(message.content);
@@ -422,7 +424,7 @@ const botCommands = {
     },
     
     trust: async message => {
-        if(!((message.server.id == config.mainServer) && IsAdmin(message.server, message.member)))
+        if(!((message.server.id == config.mainServer) && IsAdmin(message.member)))
             return;
         
         const match = message.content.match(/[0-9]+/);
@@ -443,7 +445,7 @@ const botCommands = {
     },
     
     untrust: async message => {
-        if(!((message.server.id == config.mainServer) && IsAdmin(message.server, message.member)))
+        if(!((message.server.id == config.mainServer) && IsAdmin(message.member)))
             return;
         
         const match = message.content.match(/[0-9]+/);
@@ -464,7 +466,7 @@ const botCommands = {
     },
     
     subscribe: async message => {
-        if(!IsAdmin(message.server, message.member))
+        if(!IsAdmin(message.member))
             return;
         
         const
@@ -494,7 +496,7 @@ const botCommands = {
     },
     
     post: async message => {
-        if(!((message.server.id == config.mainServer) && IsAdmin(message.server, message.member)))
+        if(!((message.server.id == config.mainServer) && IsAdmin(message.member)))
             return;
         
         const jsonIndex = message.content.indexOf('{');
@@ -523,7 +525,7 @@ const botCommands = {
     },
     
     tags: async message => {
-        if(!IsAdmin(message.server, message.member))
+        if(!IsAdmin(message.member))
             return;
         
         const categories = await categoriesDb.find({});
@@ -537,7 +539,7 @@ const botCommands = {
     },
     
     hooks: async message => {
-        if(!((message.server.id == config.mainServer) && IsAdmin(message.server, message.member)))
+        if(!((message.server.id == config.mainServer) && IsAdmin(message.member)))
             return;
         
         const hooks = await hooksDb.find({});
@@ -568,7 +570,7 @@ const botCommands = {
     },
     
     addcat: async message => {
-        if(!((message.server.id == config.mainServer) && IsAdmin(message.server, message.member)))
+        if(!((message.server.id == config.mainServer) && IsAdmin(message.member)))
             return;
         
         const jsonIndex = message.content.indexOf('{');
@@ -595,7 +597,7 @@ const botCommands = {
     },
     
     removecat: async message => {
-        if(!((message.server.id == config.mainServer) && IsAdmin(message.server, message.member)))
+        if(!((message.server.id == config.mainServer) && IsAdmin(message.member)))
             return;
         
         const match = Util.GetFirstNewsTag(message.content);
@@ -615,7 +617,7 @@ const botCommands = {
     },
     
     dumpcat: async message => {
-        if(!((message.server.id == config.mainServer) && IsAdmin(message.server, message.member)))
+        if(!((message.server.id == config.mainServer) && IsAdmin(message.member)))
             return;
         
         const match = Util.GetFirstNewsTag(message.content);
@@ -641,9 +643,6 @@ const botCommands = {
 };
 
 const CheckBanned = async member => {
-    if(IsModer(member.server, member))
-        return false;
-    
     const userInfo = await blacklistDb.findOne({ _id: member.user.id });
     if(!userInfo)
         return false;
@@ -655,10 +654,13 @@ const CheckBanned = async member => {
 };
 
 const CheckSpam = async message => {
+    if(message.author.id == message.server.owner_id)
+        return false;
+    
     if(message.author.bot)
         return false;
     
-    if(IsModer(message.server, message.member))
+    if(message.member.roles.length)
         return false;
     
     const codes = Util.GetInviteCodes(message.content);
