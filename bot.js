@@ -728,6 +728,12 @@ const CheckSpam = async message => {
     return true;
 };
 
+const ServerUpdate = server => {
+    server.members = null;
+    server.presences = null;
+    ConnectedServers.set(server.id, server);
+};
+
 const events = {
     READY: async data => {
         console.log('INIT');
@@ -757,9 +763,7 @@ const events = {
         
         let connected = 0;
         events.GUILD_CREATE = async server => {
-            server.members = null;
-            server.presences = null;
-            ConnectedServers.set(server.id, server);
+            ServerUpdate(server);
             connected++;
             
             if(connected < serverCount)
@@ -819,14 +823,13 @@ const events = {
     },
     
     GUILD_CREATE: async server => {
-        events.GUILD_UPDATE(server);
         ServiceLog(`**Подключен новый сервер!**\n${ServerToText(server)}\nВладелец: ${UserToText(await GetUser(server.owner_id))}`);
+        ServerUpdate(server);
+        PushServerList();
     },
     
     GUILD_UPDATE: async server => {
-        server.members = null;
-        server.presences = null;
-        ConnectedServers.set(server.id, server);
+        ServerUpdate(server);
         PushServerList();
     },
     
