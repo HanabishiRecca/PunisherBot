@@ -40,10 +40,15 @@ const client = new Discord.Client({
     })(),
 });
 
+const StatusTracker = require('http').createServer((_, res) => res.end('ONLINE'));
+client.on('reconnecting', () => {
+    StatusTracker.close();
+    console.warn('Reconnect');
+});
+
 client.on('disconnect', Shutdown);
 client.on('error', () => console.error('Connection error!'));
-client.on('reconnecting', () => console.warn('Reconnecting...'));
-client.on('resume', () => console.warn('Connection restored'));
+client.on('resume', () => console.warn('Connection resume'));
 client.on('rateLimit', () => console.warn('Rate limit!'));
 
 const
@@ -734,7 +739,8 @@ const events = {
         client.ws.send({ op: 3, d: { status: { web: 'online' }, game: { name: `${config.prefix}help`, type: 3 }, afk: false, since: 0 } });
         
         const ClientReady = () => {
-            require('http').createServer((_, res) => res.end('ONLINE')).listen(21240);
+            if(!StatusTracker.listening)
+                StatusTracker.listen(21240);
             
             PushBlacklist();
             PushServerList();
