@@ -54,13 +54,13 @@ client.on('rateLimit', () => console.warn('Rate limit!'));
 const
     Endpoints = Discord.Constants.Endpoints,
     FLAGS = Discord.Permissions.FLAGS,
+    CDN = Discord.Constants.DefaultOptions.http.cdn,
     ConnectedServers = new Map(),
     SuspiciousUsers = new Map(),
     SafePromise = promise => new Promise(resolve => promise.then(result => resolve(result)).catch(() => resolve(null)));
 
 const
     BanUser = (server, user, reason) => client.rest.makeRequest('put', `${Endpoints.Guild(server).bans}/${user.id||user}?delete-message-days=1&reason=${reason}`, true),
-    CheckPermission = (permissions, flag) => ((permissions & FLAGS.ADMINISTRATOR) > 0) || ((permissions & flag) === flag),
     CreateWebhook = (channel, name, avatar) => client.rest.makeRequest('post', Endpoints.Channel(channel).webhooks, true, { name, avatar }),
     DeleteMessage = message => client.rest.makeRequest('delete', Endpoints.Channel(message.channel_id).Message(message), true),
     GetBans = server => client.rest.makeRequest('get', Endpoints.Guild(server).bans, true),
@@ -73,13 +73,16 @@ const
     UnbanUser = (server, user) => client.rest.makeRequest('delete', `${Endpoints.Guild(server).bans}/${user.id||user}`, true);
 
 const
+    CheckPermission = (permissions, flag) => ((permissions & FLAGS.ADMINISTRATOR) > 0) || ((permissions & flag) === flag),
     MessageContent = str => `**Содержимое сообщения**\`\`\`${str}\`\`\``,
     MessageUrl = (server, channel, message) => `${Discord.Constants.DefaultOptions.http.host}/channels/${server.id||server}/${channel.id||channel}/${message.id||message}`,
+    NoAvatar = discriminator => `${CDN}/embed/avatars/${parseInt(discriminator)%5}.png`,
     ServerToText = server => `\`${server.name}\` (${server.id})`,
     TagNotExist = tag => `тег \`${tag}\` не существует.`,
+    UserAvatar = user => `${CDN}/avatars/${user.id}/${user.avatar}`,
     UserMention = user => `<@${user.id || user}>`,
     UserNotExist = id => `пользователь с идентификатором \`${id}\` не существует.`,
-    UserTag = user => `${user.username}#${user.discriminator}`,
+    UserTag = user => `**${user.username}**\`#${user.discriminator}\``,
     UserToText = user => `${UserMention(user)} (\`${UserTag(user)}\`)`;
 
 const HasPermission = async (member, flag) => {
@@ -223,17 +226,17 @@ ${config.panelUrl}`,
     
     userHelp = `**Команды пользователя**
 \`link\` - показать ссылку на приглашение бота.
+\`info @user\` - показать информацию об указанном пользователе.
 \`help\` - показать данное справочное сообщение.`,
     
     moderHelp = `**Команды модератора**
 \`cleanup N\` - удалить N последних сообщений на канале. Максимум 100 сообщений.
-\`info @user\` - показать информацию об указанном пользователе из черного списка.
-\`blacklist\` - показать список всех пользователей в черном списке.`,
+\`stats\` - показать количество серверов и банов.
+\`blacklist\` - показать список всех пользователей в черном списке.
+\`serverlist\` - показать список всех подключенных серверов.`,
     
     adminHelp = `**Команды администратора**
 \`channel #канал\` - установка канала для информационных сообщений бота. Если канал не указан, параметр будет очищен.
-\`stats\` - показать количество серверов и банов.
-\`serverlist\` - показать список всех подключенных серверов.
 \`subscribe $tag\` - подписаться на категории с указанными тегами. Если теги не указаны, будет осуществлена подписка на все категории.
 \`tags\` - показать список всех доступных новостных категорий.`,
     
@@ -266,9 +269,6 @@ const botCommands = {
     },
     
     info: async message => {
-        if(!IsModer(message.member))
-            return;
-        
         const userId = Util.GetFirstUserMention(message.content);
         if(!userId)
             return;
@@ -278,14 +278,13 @@ const botCommands = {
             return message.reply(UserNotExist(userId), true);
         
         const userInfo = await blacklistDb.findOne({ _id: user.id });
-        if(!userInfo)
-            return message.reply(`**Информация**\nПользователь ${UserToText(user)} не находится в черном списке.`);
-        
-        const
-            server = ConnectedServers.get(userInfo.server),
-            moder = await SafePromise(GetUser(userInfo.moder));
-        
-        message.reply(`**Информация**\nПользователь: ${UserToText(user)}\nСервер: ${server ? ServerToText(server) : userInfo.server}\nМодератор: ${moder ? UserToText(moder) : UserNotExist(moder)}\nДата добавления: ${Util.DtString(userInfo.date)}\nПричина: ${userInfo.reason}`);
+        SendMessage(message.channel_id, '', {
+            description: UserTag(user),
+            thumbnail: { url: user.avatar ? UserAvatar(user) : NoAvatar(user.discriminator) },
+            fields: [
+                userInfo ? { name: 'Пользователь находится в черном списке!', value: userInfo.reason } : { name: 'Пользователь не находится в черном списке.', value: ':thumbsup:' },
+            ],
+        });
     },
     
     blacklist: async message => {
@@ -326,14 +325,14 @@ const botCommands = {
     },
     
     stats: async message => {
-        if(!IsAdmin(message.member))
+        if(!IsModer(message.member))
             return;
         
         message.reply(`**Статистика**\nПользователей в черном списке: ${await blacklistDb.count({})}\nПодключено серверов: ${ConnectedServers.size}`);
     },
     
     serverlist: async message => {
-        if(!IsAdmin(message.member))
+        if(!IsModer(message.member))
             return;
         
         const servers = [...ConnectedServers.values()];
