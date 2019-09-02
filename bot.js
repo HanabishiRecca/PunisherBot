@@ -178,16 +178,14 @@ const PushServerList = async () => {
         return;
     
     const output = [];
-    for(const server of ConnectedServers.values()) {
-        const serverInfo = await serversDb.findOne({ _id: server.id });
+    for(const server of ConnectedServers.values())
         output.push({
             id: server.id,
             name: server.name,
             users: server.member_count,
             image: server.icon,
-            trusted: serverInfo ? serverInfo.trusted : false,
+            trusted: server.trusted,
         });
-    }
     
     fs.writeFileSync(`${process.env.WEB_DIR}/servers.json`, JSON.stringify(output));
 };
@@ -445,6 +443,7 @@ const botCommands = {
             return message.reply(`сервер с идентификатором \`${serverId}\` не подключен.`, true);
         
         await serversDb.update({ _id: serverId }, { $set: { trusted: true } }, { upsert: true });
+        server.trusted = true;
         message.reply(`сервер ${ServerToText(server)} добавлен в список доверенных.`, true);
         
         PushServerList();
@@ -466,7 +465,12 @@ const botCommands = {
             return message.reply('указанный сервер отсутствует в списке доверенных.', true);
         
         await serversDb.update({ _id: serverId }, { $unset: { trusted: true } });
-        message.reply(`${server ? `сервер ${ServerToText(server)}` : `идентификатор \`${serverId}\``} удален из списка доверенных.`);
+        if(server) {
+            server.trusted = false;
+            message.reply(`сервер ${ServerToText(server)} удален из списка доверенных.`);
+        } else {
+            message.reply(`идентификатор \`${serverId}\` удален из списка доверенных.`);
+        }
         
         PushServerList();
     },
@@ -730,7 +734,8 @@ const CheckSpam = async message => {
     return true;
 };
 
-const ServerUpdate = server => {
+const ServerUpdate = async server => {
+    const serverInfo = await serversDb.findOne({ _id: server.id });
     ConnectedServers.set(server.id, {
         id: server.id,
         name: server.name,
@@ -738,6 +743,7 @@ const ServerUpdate = server => {
         roles: server.roles,
         member_count: server.member_count,
         icon: server.icon,
+        trusted: serverInfo && serverInfo.trusted,
     });
 };
 
@@ -766,7 +772,7 @@ const events = {
         
         let connected = 0;
         events.GUILD_CREATE = async server => {
-            ServerUpdate(server);
+            await ServerUpdate(server);
             connected++;
             
             if(connected < serverCount)
@@ -827,12 +833,12 @@ const events = {
     
     GUILD_CREATE: async server => {
         ServiceLog(`**Подключен новый сервер!**\n${ServerToText(server)}\nВладелец: ${UserToText(await GetUser(server.owner_id))}`);
-        ServerUpdate(server);
+        await ServerUpdate(server);
         PushServerList();
     },
     
     GUILD_UPDATE: async server => {
-        ServerUpdate(server);
+        await ServerUpdate(server);
         PushServerList();
     },
     
