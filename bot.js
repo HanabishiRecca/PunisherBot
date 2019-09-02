@@ -220,6 +220,8 @@ const PushBlacklist = async () => {
     fs.writeFileSync(`${process.env.WEB_DIR}/blacklist.json`, JSON.stringify(output));
 };
 
+client.setInterval(PushBlacklist, 3600000);
+
 const
     headerHelp = `**Информационная панель бота**
 ${config.panelUrl}`,
@@ -749,10 +751,6 @@ const events = {
             
             PushBlacklist();
             PushServerList();
-            
-            client.setInterval(() => {
-                PushBlacklist();
-            }, 3600000);
             
             console.log('READY');
         };
