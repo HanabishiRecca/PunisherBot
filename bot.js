@@ -238,7 +238,8 @@ ${config.panelUrl}`,
     adminHelp = `**Команды администратора**
 \`channel #канал\` - установка канала для информационных сообщений бота. Если канал не указан, параметр будет очищен.
 \`subscribe $tag\` - подписаться на категории с указанными тегами. Если теги не указаны, будет осуществлена подписка на все категории.
-\`tags\` - показать список всех доступных новостных категорий.`,
+\`tags\` - показать список всех доступных новостных категорий.
+\`strict\` - включить/отключить строгий режим.`,
     
     serviceHelp = `**Сервисные команды**
 \`ban @user причина\` - добавить указанного пользователя в черный список с указанием причины.
@@ -370,6 +371,23 @@ const botCommands = {
             text += `${serviceHelp}\n\n`;
         
         message.reply(text);
+    },
+    
+    strict: async message => {
+        if(!IsAdmin(message.member))
+            return;
+        
+        const
+            serverInfo = await serversDb.findOne({ _id: message.server.id }),
+            strict = serverInfo ? !serverInfo.strict : true;
+        
+        await serversDb.update({ _id: message.server.id }, { $set: { strict } }, { upsert: true });
+        message.server.strict = strict;
+        
+        if(strict)
+            message.reply('строгий режим включен. **Баны будут выдаваться без предупреждения.**', true);
+        else
+            message.reply('строгий режим отключен.', true);
     },
     
     ban: async message => {
@@ -705,29 +723,30 @@ const CheckSpam = async message => {
         user = message.author;
     
     if(new Date(message.member.joined_at).getTime() < Date.now() - config.banJoinPeriod) {
-        if(SuspiciousUsers.has(user.id)) {
-            Notify(server, `Злоупотребление инвайтами от пользователя ${UserToText(user)}.\n\n${MessageContent(message.content)}`);
-            clearTimeout(SuspiciousUsers.get(user.id));
+        if(message.server.strict || SuspiciousUsers.has(user.id)) {
             TryDeleteMessage(message);
-            SendPM(user, `Обнаружено злоупотребление инвайтами.`);
+            clearTimeout(SuspiciousUsers.get(user.id));
+            Notify(server, `Злоупотребление инвайтами от пользователя ${UserToText(user)}.\n\n${MessageContent(message.content)}`);
+            SendPM(user, `**Предупреждение**\nОбнаружено злоупотребление инвайтами.`);
         }
         SuspiciousUsers.set(user.id, setTimeout(() => SuspiciousUsers.delete(user.id), config.suspiciousTimeout));
     } else {
-        if(SuspiciousUsers.has(user.id)) {
-            await blacklistDb.insert({ _id: user.id, server: server.id, moder: client.user.id, date: Date.now(), reason: 'Автоматически: сторонний пользователь, спам сторонним инвайтом' });
+        if(message.server.strict || SuspiciousUsers.has(user.id)) {
+            const reason = '[Авто-бан] Спам инвайтов';
+            await blacklistDb.insert({ _id: user.id, server: server.id, moder: client.user.id, date: Date.now(), reason });
             Notify(server, `Пользователь ${UserToText(user)} автоматически добавлен в черный список по причине спама.\n\n${MessageContent(message.content)}`);
-            if(await TryBan(server, user, 'Автоматический бан'))
+            if(await TryBan(server, user, reason))
                 SuspiciousUsers.delete(user.id);
             else
                 TryDeleteMessage(message);
             
-            await TryBan(config.mainServer, user, 'Автоматический бан');
+            await TryBan(config.mainServer, user, reason);
             PushBlacklist();
         } else {
-            SuspiciousUsers.set(user.id, 0);
-            Notify(server, `Сторонний пользователь ${UserToText(user)} разместил стороннее приглашение. Повторная попытка приведет к бану.\n\n${MessageContent(message.content)}`);
+            SuspiciousUsers.set(user.id, 1);
+            Notify(server, `Сторонний пользователь ${UserToText(user)} разместил сторонний инвайт. Повторная попытка приведет к бану.\n\n${MessageContent(message.content)}`);
             TryDeleteMessage(message);
-            SendPM(user, `Обнаружена попытка спама на сервере ${ServerToText(server)}. Повторная попытка спама приведет к бану.`);
+            SendPM(user, '**Предупреждение**\nВаши действия распознаны как спам. Повторная попытка приведет к бану.');
         }
     }
     
@@ -744,6 +763,7 @@ const ServerUpdate = async server => {
         member_count: server.member_count,
         icon: server.icon,
         trusted: serverInfo && serverInfo.trusted,
+        strict: serverInfo && serverInfo.strict,
     });
 };
 
