@@ -820,7 +820,7 @@ const events = {
         if(await CheckSpam(message))
             return;
         
-        if(!message.content.startsWith(config.prefix))
+        if(!message.content.toLowerCase().startsWith(config.prefix))
             return;
         
         const
