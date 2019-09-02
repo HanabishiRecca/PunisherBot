@@ -731,9 +731,14 @@ const CheckSpam = async message => {
 };
 
 const ServerUpdate = server => {
-    server.members = null;
-    server.presences = null;
-    ConnectedServers.set(server.id, server);
+    ConnectedServers.set(server.id, {
+        id: server.id,
+        name: server.name,
+        owner_id: server.owner_id,
+        roles: server.roles,
+        member_count: server.member_count,
+        icon: server.icon,
+    });
 };
 
 const events = {
