@@ -9,7 +9,6 @@
     "main": "bot.js",
     "dependencies": {
         "discord.js": "^11.5.1",
-        "intl": "^1.2.5",
         "nedb-promise": "^2.0.1"
     }
 }
