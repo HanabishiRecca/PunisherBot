@@ -85,7 +85,7 @@ const
     UserMention = user => `<@${user.id || user}>`,
     UserNotExist = id => `пользователь с идентификатором \`${id}\` не существует.`,
     UserTag = user => `**${user.username}**\`#${user.discriminator}\``,
-    UserToText = user => `${UserMention(user)} (\`${UserTag(user)}\`)`;
+    UserToText = user => `${UserMention(user)} (${UserTag(user)})`;
 
 const HasPermission = async (member, flag) => {
     const serverRoles = new Map();
