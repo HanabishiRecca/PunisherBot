@@ -516,7 +516,7 @@ const botCommands = {
         
         const
             name = `Новости (${tags.length ? tags.join(', ') : 'все'})`,
-            webhook = await SafePromise(CreateWebhook(message.channel, name));
+            webhook = await SafePromise(CreateWebhook(message.channel_id, name));
         
         if(!webhook)
             return message.reply('не удалось создать вебхук.', true);
