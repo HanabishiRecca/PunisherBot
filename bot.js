@@ -235,7 +235,6 @@ ${config.panelUrl}`,
 \`help\` - показать данное справочное сообщение.`,
     
     moderHelp = `**Команды модератора**
-\`cleanup N\` - удалить N последних сообщений на канале. Можно удалить от 2 до 100 сообщений.
 \`stats\` - показать количество серверов и банов.
 \`blacklist\` - показать список всех пользователей в черном списке.
 \`serverlist\` - показать список всех подключенных серверов.`,
@@ -316,18 +315,6 @@ const botCommands = {
             }
         }
         message.reply(text + '\n```');
-    },
-    
-    cleanup: async message => {
-        if(!IsModer(message.member))
-            return;
-        
-        const limit = parseInt(message.content);
-        if(!(limit && (limit >= 2) && (limit <= 100)))
-            return message.reply('необходимо указать число удаляемых сообщений от 2 до 100.', true);
-        
-        const messages = (await client.rest.makeRequest('get', `${Endpoints.Channel(message.channel_id).messages}?limit=${Math.min(limit, 100)}`, true)).map(m => m.id);
-        client.rest.makeRequest('post', Endpoints.Channel(message.channel_id).messages.bulkDelete, true, { messages });
     },
     
     stats: async message => {
