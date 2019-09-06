@@ -88,6 +88,9 @@ const
     UserToText = user => `${UserMention(user)} (${UserTag(user)})`;
 
 const HasPermission = async (member, flag) => {
+    if(!member.roles.length)
+        return false;
+    
     const serverRoles = new Map();
     let roles = member.server.roles;
     for(let i = 0; i < roles.length; i++) {
