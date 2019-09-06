@@ -827,14 +827,15 @@ const events = {
         
         const
             si = message.content.search(/(\s|\n|$)/),
-            command = botCommands[message.content.substring(config.prefix.length, (si > 0) ? si : undefined).toLowerCase()];
+            command = message.content.substring(config.prefix.length, (si > 0) ? si : undefined).toLowerCase();
         
-        if(!command)
+        if(!(command && botCommands.hasOwnProperty(command)))
             return;
         
         message.content = message.content.substring((si > 0) ? (si + 1) : '');
         
-        command(message);
+        console.log(`COMMAND (${command}) ARG (${message.content}) SERVER (${message.server.name}) USER (${message.author.username}#${message.author.discriminator})`);
+        botCommands[command](message);
     },
     
     GUILD_MEMBER_ADD: async member => {
