@@ -62,7 +62,7 @@ const
     SafePromise = promise => new Promise(resolve => promise.then(result => resolve(result)).catch(() => resolve(null)));
 
 const
-    BanUser = (server, user, reason) => client.rest.makeRequest('put', `${Endpoints.Guild(server).bans}/${user.id||user}?delete-message-days=1&reason=${reason}`, true),
+    BanUser = (server, user, reason) => client.rest.makeRequest('put', `${Endpoints.Guild(server).bans}/${user.id||user}?delete-message-days=1&reason=${encodeURI(reason)}`, true),
     CreateWebhook = (channel, name, avatar) => client.rest.makeRequest('post', Endpoints.Channel(channel).webhooks, true, { name, avatar }),
     DeleteMessage = message => client.rest.makeRequest('delete', Endpoints.Channel(message.channel_id).Message(message), true),
     GetBans = server => client.rest.makeRequest('get', Endpoints.Guild(server).bans, true),
