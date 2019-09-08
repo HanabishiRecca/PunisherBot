@@ -189,7 +189,7 @@ const PushServerList = async () => {
             name: server.name,
             users: server.member_count,
             image: server.icon,
-            owner: server.owner,
+            owner: { username: server.owner.username, discriminator: server.owner.discriminator },
             trusted: server.trusted,
         });
     
