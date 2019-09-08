@@ -189,6 +189,7 @@ const PushServerList = async () => {
             name: server.name,
             users: server.member_count,
             image: server.icon,
+            owner: server.owner,
             trusted: server.trusted,
         });
     
@@ -747,16 +748,21 @@ const CheckSpam = async message => {
 
 const ServerUpdate = async server => {
     const serverInfo = await serversDb.findOne({ _id: server.id });
-    ConnectedServers.set(server.id, {
+    
+    const psrv = {
         id: server.id,
         name: server.name,
-        owner_id: server.owner_id,
+        owner: server.members.find(elem => elem.user.id == server.owner_id).user,
         roles: server.roles,
         member_count: server.member_count,
         icon: server.icon,
         trusted: serverInfo && serverInfo.trusted,
         strict: serverInfo && serverInfo.strict,
-    });
+    };
+    
+    ConnectedServers.set(psrv.id, psrv);
+    
+    return psrv;
 };
 
 const events = {
@@ -845,8 +851,8 @@ const events = {
     },
     
     GUILD_CREATE: async server => {
-        ServiceLog(`**Подключен новый сервер!**\n${ServerToText(server)}\nВладелец: ${UserToText(await GetUser(server.owner_id))}`);
-        await ServerUpdate(server);
+        const psrv = await ServerUpdate(server);
+        ServiceLog(`**Подключен новый сервер!**\n${ServerToText(psrv)}\nВладелец: ${UserToText(psrv.owner)}`);
         PushServerList();
     },
     
