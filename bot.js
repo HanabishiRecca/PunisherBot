@@ -746,23 +746,18 @@ const CheckSpam = async message => {
     return true;
 };
 
-const ServerUpdate = async server => {
+const AddServer = async server => {
     const serverInfo = await serversDb.findOne({ _id: server.id });
-    
-    const psrv = {
+    ConnectedServers.set(server.id, {
         id: server.id,
         name: server.name,
-        owner: server.members.find(elem => elem.user.id == server.owner_id).user,
         roles: server.roles,
         member_count: server.member_count,
         icon: server.icon,
+        owner: server.members.find(member => member.user.id == server.owner_id).user,
         trusted: serverInfo && serverInfo.trusted,
         strict: serverInfo && serverInfo.strict,
-    };
-    
-    ConnectedServers.set(psrv.id, psrv);
-    
-    return psrv;
+    });
 };
 
 const events = {
@@ -790,7 +785,7 @@ const events = {
         
         let connected = 0;
         events.GUILD_CREATE = async server => {
-            await ServerUpdate(server);
+            await AddServer(server);
             connected++;
             
             if(connected < serverCount)
@@ -851,13 +846,16 @@ const events = {
     },
     
     GUILD_CREATE: async server => {
-        const psrv = await ServerUpdate(server);
-        ServiceLog(`**Подключен новый сервер!**\n${ServerToText(psrv)}\nВладелец: ${UserToText(psrv.owner)}`);
+        await AddServer(server);
+        ServiceLog(`**Подключен новый сервер!**\n${ServerToText(server)}\nВладелец: ${UserToText(ConnectedServers.get(server.id).owner)}`);
         PushServerList();
     },
     
     GUILD_UPDATE: async server => {
-        await ServerUpdate(server);
+        const sobj = ConnectedServers.get(server.id);
+        sobj.name = server.name;
+        sobj.roles = server.roles;
+        sobj.icon = server.icon;
         PushServerList();
     },
     
