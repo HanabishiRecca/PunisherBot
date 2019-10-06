@@ -87,7 +87,7 @@ const
     UserTag = user => `**${user.username}**\`#${user.discriminator}\``,
     UserToText = user => `${UserMention(user)} (${UserTag(user)})`;
 
-const HasPermission = async (member, flag) => {
+const HasPermission = (member, flag) => {
     if(!member.roles.length)
         return false;
     
