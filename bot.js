@@ -846,12 +846,18 @@ const events = {
     },
     
     GUILD_CREATE: async server => {
+        if(!server.name)
+            return;
+        
         await AddServer(server);
         ServiceLog(`**Подключен новый сервер!**\n${ServerToText(server)}\nВладелец: ${UserToText(ConnectedServers.get(server.id).owner)}`);
         PushServerList();
     },
     
     GUILD_UPDATE: async server => {
+        if(!server.name)
+            return;
+        
         const sobj = ConnectedServers.get(server.id);
         sobj.name = server.name;
         sobj.roles = server.roles;
@@ -860,6 +866,9 @@ const events = {
     },
     
     GUILD_DELETE: async server => {
+        if(!server.name)
+            return;
+        
         ConnectedServers.delete(server.id);
         ServiceLog(`**Сервер отключен**\n${ServerToText(server)}`);
         PushServerList();
