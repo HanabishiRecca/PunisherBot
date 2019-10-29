@@ -762,38 +762,21 @@ const AddServer = async server => {
 
 const events = {
     READY: async data => {
-        console.log('INIT');
-        
-        ConnectedServers.clear();
-        
         client.user = data.user;
         client.ws.send({ op: 3, d: { status: { web: 'online' }, game: { name: `${config.prefix}help`, type: 3 }, afk: false, since: 0 } });
         
-        const ClientReady = () => {
-            if(!StatusTracker.listening)
-                StatusTracker.listen(21240);
-            
-            PushBlacklist();
-            PushServerList();
-            
-            console.log('READY');
-        };
+        ConnectedServers.clear();
         
-        const
-            serverCount = data.guilds.length,
-            origFunc = events.GUILD_CREATE;
+        const servers = data.guilds;
+        for(let i = 0; i < servers.length; i++) {
+            const server = servers[i];
+            ConnectedServers.set(server.id, server);
+        }
         
-        let connected = 0;
-        events.GUILD_CREATE = async server => {
-            await AddServer(server);
-            connected++;
-            
-            if(connected < serverCount)
-                return;
-            
-            events.GUILD_CREATE = origFunc;
-            ClientReady();
-        };
+        if(!StatusTracker.listening)
+            StatusTracker.listen(21240);
+        
+        console.log('READY');
     },
     
     MESSAGE_CREATE: async message => {
@@ -849,8 +832,10 @@ const events = {
         if(!server.name)
             return;
         
+        if(!ConnectedServers.has(server.id))
+            ServiceLog(`**Подключен новый сервер!**\n${ServerToText(server)}\nВладелец: ${UserToText(ConnectedServers.get(server.id).owner)}`);
+        
         await AddServer(server);
-        ServiceLog(`**Подключен новый сервер!**\n${ServerToText(server)}\nВладелец: ${UserToText(ConnectedServers.get(server.id).owner)}`);
         PushServerList();
     },
     
