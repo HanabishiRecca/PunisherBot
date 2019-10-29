@@ -182,6 +182,10 @@ const PushServerList = async () => {
     if(!process.env.WEB_DIR)
         return;
     
+    for(const server of ConnectedServers.values())
+        if(!server.name)
+            return;
+    
     const output = [];
     for(const server of ConnectedServers.values())
         output.push({
