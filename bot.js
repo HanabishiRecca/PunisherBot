@@ -159,7 +159,7 @@ const SendNews = async (tag, content, embed) => {
         hooks = await hooksDb.find({});
     
     hooks.forEach(async hookInfo => {
-        const hook = await GetWebhook(hookInfo._id, hookInfo.token);
+        const hook = await SafePromise(GetWebhook(hookInfo._id, hookInfo.token));
         if(!hook)
             return await hooksDb.remove({ _id: hookInfo._id });
         
