@@ -857,14 +857,12 @@ const events = {
     },
     
     GUILD_DELETE: async server => {
-        if(!ConnectedServers.has(server.id))
-            return;
-        
-        if(!server.name)
+        const sobj = ConnectedServers.get(server.id);
+        if(!sobj)
             return;
         
         ConnectedServers.delete(server.id);
-        ServiceLog(`**Сервер отключен**\n${ServerToText(server)}`);
+        ServiceLog(`**Сервер отключен**\n${ServerToText(sobj)}`);
         PushServerList();
     },
 };
