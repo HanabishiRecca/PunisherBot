@@ -833,14 +833,14 @@ const events = {
     },
     
     GUILD_CREATE: async server => {
-        if(ConnectedServers.has(server.id))
-            return;
-        
         if(!server.name)
             return;
         
+        const inited = ConnectedServers.has(server.id);
         await AddServer(server);
-        ServiceLog(`**Подключен новый сервер!**\n${ServerToText(server)}\nВладелец: ${UserToText(ConnectedServers.get(server.id).owner)}`);
+        
+        if(!inited)
+            ServiceLog(`**Подключен новый сервер!**\n${ServerToText(server)}\nВладелец: ${UserToText(ConnectedServers.get(server.id).owner)}`);
         
         PushServerList();
     },
