@@ -376,17 +376,25 @@ const botCommands = {
         if(!invites)
             return message.reply('команда не разрешена.', true);
         
-        let text = `**Текущие инвайты**\nВсего: ${invites.length}\n\`\`\`css\n`;
+        let max = 0;
+        for(let i = 0; i < invites.length; i++) {
+            const uses = invites[i].uses;
+            if(uses > max)
+                max = uses;
+        }
+        const maxLen = max.toString().length;
+        
+        let text = `**Текущие инвайты**\nВсего: ${invites.length}\n\`\`\`py\n`;
         for(let i = 0; i < invites.length; i++) {
             const
                 invite = invites[i],
-                add = `${invite.inviter.username}#${invite.inviter.discriminator} | ${invite.code} | ${invite.uses}\n`;
+                add = `${invite.code.padEnd(7)} | ${invite.uses.toString().padEnd(maxLen)} | ${invite.inviter.username}#${invite.inviter.discriminator}\n`;
             
             if(text.length + add.length < 1990) {
                 text += add;
             } else {
                 message.reply(text + '\n```');
-                text = '```css\n' + add;
+                text = '```py\n' + add;
             }
         }
         message.reply(text + '\n```');
