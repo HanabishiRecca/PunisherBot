@@ -376,13 +376,8 @@ const botCommands = {
         if(!invites)
             return message.reply('команда не разрешена.', true);
         
-        let max = 0;
-        for(let i = 0; i < invites.length; i++) {
-            const uses = invites[i].uses;
-            if(uses > max)
-                max = uses;
-        }
-        const maxLen = max.toString().length;
+        invites.sort((a, b) => b.uses - a.uses);
+        const maxLen = (invites.length > 0) ? invites[0].uses.toString().length : 0;
         
         let text = `**Текущие инвайты**\nВсего: ${invites.length}\n\`\`\`py\n`;
         for(let i = 0; i < invites.length; i++) {
