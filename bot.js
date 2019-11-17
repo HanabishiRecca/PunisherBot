@@ -811,9 +811,9 @@ const events = {
             return;
         
         message.content = message.content.substring((si > 0) ? (si + 1) : '');
-        
-        console.log(`COMMAND (${command}) ARG (${message.content}) SERVER (${message.server.name}) USER (${message.author.username}#${message.author.discriminator})`);
         botCommands[command](message);
+        
+        console.log(`COMMAND (${command}) SERVER (${message.server.id}) USER (${message.author.id})`);
     },
     
     GUILD_MEMBER_ADD: async member => {
