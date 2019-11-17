@@ -67,6 +67,7 @@ const
     DeleteMessage = message => client.rest.makeRequest('delete', Endpoints.Channel(message.channel_id).Message(message), true),
     GetBans = server => client.rest.makeRequest('get', Endpoints.Guild(server).bans, true),
     GetInvite = code => client.rest.makeRequest('get', Endpoints.Invite(code), true),
+    GetServerInvites = server => client.rest.makeRequest('get', Endpoints.Guild(server).invites, true),
     GetUser = userId => client.rest.makeRequest('get', Endpoints.User(userId), true),
     GetUserChannel = user => client.rest.makeRequest('post', Endpoints.User(client.user).channels, true, { recipient_id: user.id || user }),
     GetWebhook = (id, token) => client.rest.makeRequest('get', Endpoints.Webhook(id, token)),
@@ -368,6 +369,27 @@ const botCommands = {
             text += `${serviceHelp}\n\n`;
         
         message.reply(text);
+    },
+    
+    invites: async message => {
+        const invites = await SafePromise(GetServerInvites(message.server.id));
+        if(!invites)
+            return message.reply('команда не разрешена.', true);
+        
+        let text = `**Текущие инвайты**\nВсего: ${invites.length}\n\`\`\`css\n`;
+        for(let i = 0; i < invites.length; i++) {
+            const
+                invite = invites[i],
+                add = `${invite.inviter.username}#${invite.inviter.discriminator} | ${invite.code} | ${invite.uses}\n`;
+            
+            if(text.length + add.length < 1990) {
+                text += add;
+            } else {
+                message.reply(text + '\n```');
+                text = '```css\n' + add;
+            }
+        }
+        message.reply(text + '\n```');
     },
     
     strict: async message => {
