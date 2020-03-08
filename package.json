@@ -2,10 +2,10 @@
     "name": "punisherbot",
     "version": "1.0.0",
     "description": "Punisher Bot",
-    "repository": {},
-    "license": "MIT",
     "author": "Hanabishi",
-    "contributors": [],
+    "discord": "https://discord.gg/STDnvC4",
+    "repository": "https://github.com/HanabishiRecca/PunisherBot",
+    "license": "MIT",
     "main": "bot.js",
     "dependencies": {
         "discord.js": "^11.5.1",
