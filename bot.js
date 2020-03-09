@@ -36,12 +36,16 @@ const
 const client = new Discord.Client();
 
 const StatusTracker = require('http').createServer((_, res) => res.end('ONLINE'));
-client.on('reconnecting', () => {
-    StatusTracker.close();
-    console.warn('Reconnect');
-});
 
-client.on('disconnect', Shutdown);
+client.on('connect', () => {
+    console.log('Connection established.');
+    if(!StatusTracker.listening)
+        StatusTracker.listen(21240);
+});
+client.on('disconnect', code => {
+    console.error(`Disconnect. (${code})`);
+    StatusTracker.close();
+});
 client.on('error', console.error);
 client.on('warn', console.warn);
 
@@ -796,9 +800,6 @@ const events = {
             ConnectedServers.set(server.id, server);
         }
         
-        if(!StatusTracker.listening)
-            StatusTracker.listen(21240);
-        
         console.log('READY');
     },
     
@@ -888,8 +889,7 @@ const events = {
 
 client.on('packet', async packet => {
     const event = events[packet.t];
-    if(event)
-        event(packet.d);
+    event && event(packet.d);
 });
 
 client.Connect(process.env.TOKEN);
