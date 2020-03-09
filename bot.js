@@ -22,7 +22,7 @@ if(global.gc)
 
 const
     Database = require('nedb-promise'),
-    Discord = require('discord.js'),
+    Discord = require('discordlite'),
     Util = require('./util.js'),
     config = require('./config.json'),
     fs = require('fs');
@@ -33,14 +33,7 @@ const
     categoriesDb = new Database({ filename: `${storagePath}/categories.db`, autoload: true }),
     hooksDb = new Database({ filename: `${storagePath}/hooks.db`, autoload: true });
 
-const client = new Discord.Client({
-    disabledEvents: (() => {
-        const events = [];
-        for(const event in Discord.Constants.WSEvents)
-            events.push(event);
-        return events;
-    })(),
-});
+const client = new Discord.Client();
 
 const StatusTracker = require('http').createServer((_, res) => res.end('ONLINE'));
 client.on('reconnecting', () => {
@@ -49,40 +42,38 @@ client.on('reconnecting', () => {
 });
 
 client.on('disconnect', Shutdown);
-client.on('error', () => console.error('Connection error!'));
-client.on('resume', () => console.warn('Connection resume'));
+client.on('error', console.error);
 client.on('rateLimit', () => console.warn('Rate limit!'));
 
 const
-    Endpoints = Discord.Constants.Endpoints,
-    FLAGS = Discord.Permissions.FLAGS,
-    CDN = Discord.Constants.DefaultOptions.http.cdn,
+    Routes = Discord.Routes,
+    Permissions = Discord.Permissions,
     ConnectedServers = new Map(),
     SuspiciousUsers = new Map(),
     SafePromise = promise => new Promise(resolve => promise.then(result => resolve(result)).catch(() => resolve(null)));
 
 const
-    BanUser = (server, user, reason) => client.rest.makeRequest('put', `${Endpoints.Guild(server).bans}/${user.id||user}?delete-message-days=1&reason=${encodeURI(reason)}`, true),
-    CreateWebhook = (channel, name, avatar) => client.rest.makeRequest('post', Endpoints.Channel(channel).webhooks, true, { name, avatar }),
-    DeleteMessage = message => client.rest.makeRequest('delete', Endpoints.Channel(message.channel_id).Message(message), true),
-    GetBans = server => client.rest.makeRequest('get', Endpoints.Guild(server).bans, true),
-    GetInvite = code => client.rest.makeRequest('get', Endpoints.Invite(code), true),
-    GetServerInvites = server => client.rest.makeRequest('get', Endpoints.Guild(server).invites, true),
-    GetUser = userId => client.rest.makeRequest('get', Endpoints.User(userId), true),
-    GetUserChannel = user => client.rest.makeRequest('post', Endpoints.User(client.user).channels, true, { recipient_id: user.id || user }),
-    GetWebhook = (id, token) => client.rest.makeRequest('get', Endpoints.Webhook(id, token)),
-    SendMessage = (channel, content, embed) => client.rest.makeRequest('post', Endpoints.Channel(channel).messages, true, { content, embed }),
-    SendWebhookMessage = (id, token, username, avatar_url, content, embed) => client.rest.makeRequest('post', Endpoints.Webhook(id, token), false, { username, avatar_url, content, embeds: embed ? [embed] : undefined }),
-    UnbanUser = (server, user) => client.rest.makeRequest('delete', `${Endpoints.Guild(server).bans}/${user.id||user}`, true);
+    BanUser = (server, user, reason) => client.Request('put', `${Routes.Server(server)}/bans/${user.id || user}?delete-message-days=1&reason=${encodeURI(reason)}`),
+    CreateWebhook = (channel, name, avatar) => client.Request('post', Routes.Channel(channel) + '/webhooks', { name, avatar }),
+    DeleteMessage = message => client.Request('delete', Routes.Message(message.channel_id, message)),
+    GetBans = server => client.Request('get', Routes.Server(server) + '/bans'),
+    GetInvite = code => client.Request('get', Routes.Invite(code)),
+    GetServerInvites = server => client.Request('get', Routes.Server(server) + '/invites'),
+    GetUser = userId => client.Request('get', Routes.User(userId)),
+    GetUserChannel = user => client.Request('post', Routes.User('@me') + '/channels', { recipient_id: user.id || user }),
+    GetWebhook = (id, token) => client.Request('get', Routes.Webhook(id, token)),
+    SendMessage = (channel, content, embed) => client.Request('post', Routes.Channel(channel) + '/messages', { content, embed }),
+    SendWebhookMessage = (id, token, username, avatar_url, content, embed) => client.Request('post', Routes.Webhook(id, token), { username, avatar_url, content, embeds: embed ? [embed] : undefined }),
+    UnbanUser = (server, user) => client.Request('delete', `${Routes.Server(server)}/bans/${user.id || user}`);
 
 const
-    CheckPermission = (permissions, flag) => ((permissions & FLAGS.ADMINISTRATOR) > 0) || ((permissions & flag) === flag),
+    CheckPermission = (permissions, flag) => ((permissions & Permissions.ADMINISTRATOR) > 0) || ((permissions & flag) === flag),
     MessageContent = str => `**Содержимое сообщения**\`\`\`${str}\`\`\``,
-    MessageUrl = (server, channel, message) => `${Discord.Constants.DefaultOptions.http.host}/channels/${server.id||server}/${channel.id||channel}/${message.id||message}`,
-    NoAvatar = discriminator => `${CDN}/embed/avatars/${parseInt(discriminator)%5}.png`,
+    MessageUrl = (server, channel, message) => `${Discord.ApiHost}/channels/${server.id || server}/${channel.id || channel}/${message.id || message}`,
+    NoAvatar = discriminator => `${Discord.CdnHost}/embed/avatars/${parseInt(discriminator)%5}.png`,
     ServerToText = server => `\`${server.name}\` (${server.id})`,
     TagNotExist = tag => `тег \`${tag}\` не существует.`,
-    UserAvatar = user => `${CDN}/avatars/${user.id}/${user.avatar}`,
+    UserAvatar = user => `${Discord.CdnHost}/avatars/${user.id}/${user.avatar}`,
     UserMention = user => `<@${user.id || user}>`,
     UserNotExist = id => `пользователь с идентификатором \`${id}\` не существует.`,
     UserTag = user => `**${user.username}**\`#${user.discriminator}\``,
@@ -110,8 +101,8 @@ const HasPermission = (member, flag) => {
 };
 
 const
-    IsAdmin = member => HasPermission(member, Discord.Permissions.FLAGS.MANAGE_CHANNELS),
-    IsModer = member => HasPermission(member, Discord.Permissions.FLAGS.MANAGE_MESSAGES),
+    IsAdmin = member => HasPermission(member, Permissions.MANAGE_CHANNELS),
+    IsModer = member => HasPermission(member, Permissions.MANAGE_MESSAGES),
     ServiceLog = msg => SendMessage(config.serviceChannel, msg);
 
 const TryBan = async (server, user, reason) => {
@@ -229,7 +220,7 @@ const PushBlacklist = async () => {
     fs.writeFileSync(`${process.env.WEB_DIR}/blacklist.json`, JSON.stringify(output));
 };
 
-client.setInterval(PushBlacklist, 3600000);
+setInterval(PushBlacklist, 3600000);
 
 const
     headerHelp = `**Информационная панель бота**
@@ -776,14 +767,17 @@ const CheckSpam = async message => {
 };
 
 const AddServer = async server => {
-    const serverInfo = await serversDb.findOne({ _id: server.id });
+    const
+        serverInfo = await serversDb.findOne({ _id: server.id }),
+        owner = server.members.find(member => member.user.id == server.owner_id);
+    
     ConnectedServers.set(server.id, {
         id: server.id,
         name: server.name,
         roles: server.roles,
         member_count: server.member_count,
         icon: server.icon,
-        owner: server.members.find(member => member.user.id == server.owner_id).user,
+        owner: owner ? owner.user : await GetUser(server.owner_id),
         trusted: serverInfo && serverInfo.trusted,
         strict: serverInfo && serverInfo.strict,
     });
@@ -792,7 +786,7 @@ const AddServer = async server => {
 const events = {
     READY: async data => {
         client.user = data.user;
-        client.ws.send({ op: 3, d: { status: { web: 'online' }, game: { name: `${config.prefix}help`, type: 3 }, afk: false, since: 0 } });
+        client.WsSend({ op: 3, d: { status: { web: 'online' }, game: { name: `${config.prefix}help`, type: 3 }, afk: false, since: 0 } });
         
         ConnectedServers.clear();
         
@@ -892,10 +886,10 @@ const events = {
     },
 };
 
-client.on('raw', async packet => {
+client.on('packet', async packet => {
     const event = events[packet.t];
     if(event)
         event(packet.d);
 });
 
-client.manager.connectToWebSocket(process.env.TOKEN, () => {}, () => {});
+client.Connect(process.env.TOKEN);

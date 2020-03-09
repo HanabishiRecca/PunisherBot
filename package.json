@@ -8,7 +8,7 @@
     "license": "MIT",
     "main": "bot.js",
     "dependencies": {
-        "discord.js": "^11.5.1",
+        "discordlite": "HanabishiRecca/DiscordLite",
         "nedb-promise": "^2.0.1"
     }
 }
