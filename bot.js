@@ -43,7 +43,7 @@ client.on('reconnecting', () => {
 
 client.on('disconnect', Shutdown);
 client.on('error', console.error);
-client.on('rateLimit', () => console.warn('Rate limit!'));
+client.on('warn', console.warn);
 
 const
     Routes = Discord.Routes,
