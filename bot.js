@@ -69,7 +69,7 @@ const
 const
     CheckPermission = (permissions, flag) => ((permissions & Permissions.ADMINISTRATOR) > 0) || ((permissions & flag) === flag),
     MessageContent = str => `**Содержимое сообщения**\`\`\`${str}\`\`\``,
-    MessageUrl = (server, channel, message) => `${Discord.ApiHost}/channels/${server.id || server}/${channel.id || channel}/${message.id || message}`,
+    MessageUrl = (server, channel, message) => `${Discord.WebHost}/channels/${server.id || server}/${channel.id || channel}/${message.id || message}`,
     NoAvatar = discriminator => `${Discord.CdnHost}/embed/avatars/${parseInt(discriminator)%5}.png`,
     ServerToText = server => `\`${server.name}\` (${server.id})`,
     TagNotExist = tag => `тег \`${tag}\` не существует.`,
