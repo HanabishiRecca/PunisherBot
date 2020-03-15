@@ -143,11 +143,7 @@ const TryDeleteMessage = async message => {
         Notify(message.server, `**Не удалось удалить сообщение!**\n${MessageUrl(message.server, message.channel_id, message)}`);
 };
 
-const SendPM = async (user, msg) => {
-    const channel = await SafePromise(GetUserChannel(user));
-    if(channel)
-        SafePromise(SendMessage(channel, msg))
-};
+const SendPM = async (user, msg) => await SafePromise(SendMessage(await GetUserChannel(user), msg));
 
 const SendNews = async (tag, content, embed) => {
     const
@@ -227,8 +223,7 @@ const PushBlacklist = async () => {
 setInterval(PushBlacklist, 3600000);
 
 const
-    headerHelp = `**Информационная панель бота**
-${config.panelUrl}`,
+    headerHelp = `**Информационная панель бота**\n${config.panelUrl}`,
     
     userHelp = `**Команды пользователя**
 \`link\` - показать ссылку на приглашение бота.
@@ -773,18 +768,21 @@ const CheckSpam = async message => {
 const AddServer = async server => {
     const
         serverInfo = await serversDb.findOne({ _id: server.id }),
-        owner = server.members.find(member => member.user.id == server.owner_id);
+        owner = server.members.find(member => member.user.id == server.owner_id),
+        connected = {
+            id: server.id,
+            name: server.name,
+            roles: server.roles,
+            member_count: server.member_count,
+            icon: server.icon,
+            owner: owner ? owner.user : await GetUser(server.owner_id),
+            trusted: serverInfo && serverInfo.trusted,
+            strict: serverInfo && serverInfo.strict,
+        };
     
-    ConnectedServers.set(server.id, {
-        id: server.id,
-        name: server.name,
-        roles: server.roles,
-        member_count: server.member_count,
-        icon: server.icon,
-        owner: owner ? owner.user : await GetUser(server.owner_id),
-        trusted: serverInfo && serverInfo.trusted,
-        strict: serverInfo && serverInfo.strict,
-    });
+    ConnectedServers.set(server.id, connected);
+    
+    return connected;
 };
 
 const events = {
@@ -856,11 +854,11 @@ const events = {
         if(!server.name)
             return;
         
-        const inited = ConnectedServers.has(server.id);
-        await AddServer(server);
+        const
+            notify = !ConnectedServers.has(server.id),
+            connected = await AddServer(server);
         
-        if(!inited)
-            ServiceLog(`**Подключен новый сервер!**\n${ServerToText(server)}\nВладелец: ${UserToText(ConnectedServers.get(server.id).owner)}`);
+        notify && ServiceLog(`**Подключен новый сервер!**\n${ServerToText(server)}\nВладелец: ${UserToText(connected.owner)}`);
         
         PushServerList();
     },
