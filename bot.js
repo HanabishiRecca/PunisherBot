@@ -113,7 +113,7 @@ const TryBan = async (server, user, reason) => {
     if(await SafePromise(BanUser(server, user, reason)))
         return true;
     
-    Notify(server, `Не удалось забанить пользователя ${UserToText(user)}!`);
+    await Notify(server, `Не удалось забанить пользователя ${UserToText(user)}!`);
     return false;
 };
 
@@ -121,7 +121,8 @@ const TryUnban = async (server, user) => {
     if(await SafePromise(UnbanUser(server, user)))
         return true;
     
-    Notify(server, `Не удалось разбанить пользователя ${UserToText(user)}!`);
+    await Notify(server, `Не удалось разбанить пользователя ${UserToText(user)}!`);
+    return false;
 };
 
 const SendInfo = async (server, msg) => {
@@ -425,7 +426,7 @@ const botCommands = {
         
         for(const server of ConnectedServers.values())
             if(server.id != message.server.id)
-                TryBan(server, user, reason);
+                await TryBan(server, user, reason);
         
         PushBlacklist();
     },
@@ -452,7 +453,7 @@ const botCommands = {
         
         for(const server of ConnectedServers.values())
             if(server.id != message.server.id)
-                TryUnban(server, user);
+                await TryUnban(server, user);
         
         PushBlacklist();
     },
