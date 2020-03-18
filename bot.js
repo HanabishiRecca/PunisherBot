@@ -769,14 +769,13 @@ const CheckSpam = async message => {
 const AddServer = async server => {
     const
         serverInfo = await serversDb.findOne({ _id: server.id }),
-        owner = server.members.find(member => member.user.id == server.owner_id),
         connected = {
             id: server.id,
             name: server.name,
             roles: server.roles,
             member_count: server.member_count,
             icon: server.icon,
-            owner: owner ? owner.user : await GetUser(server.owner_id),
+            owner: await GetUser(server.owner_id),
             trusted: serverInfo && serverInfo.trusted,
             strict: serverInfo && serverInfo.strict,
         };
