@@ -186,7 +186,6 @@ const PushServerList = async () => {
             name: server.name,
             users: server.member_count,
             image: server.icon,
-            owner: { username: server.owner.username, discriminator: server.owner.discriminator },
             trusted: server.trusted,
         });
     
@@ -775,7 +774,7 @@ const AddServer = async server => {
             roles: server.roles,
             member_count: server.member_count,
             icon: server.icon,
-            owner: await GetUser(server.owner_id),
+            owner_id: server.owner_id,
             trusted: serverInfo && serverInfo.trusted,
             strict: serverInfo && serverInfo.strict,
         };
@@ -858,7 +857,7 @@ const events = {
             notify = !ConnectedServers.has(server.id),
             connected = await AddServer(server);
         
-        notify && ServiceLog(`**Подключен новый сервер!**\n${ServerToText(server)}\nВладелец: ${UserToText(connected.owner)}`);
+        notify && ServiceLog(`**Подключен новый сервер!**\n${ServerToText(server)}\nВладелец: ${UserMention(server.owner_id)}`);
         
         PushServerList();
     },
