@@ -83,14 +83,10 @@ const HasPermission = (member, flag) => {
     if(!member.roles.length)
         return false;
     
-    const serverRoles = new Map();
-    let roles = member.server.roles;
-    for(let i = 0; i < roles.length; i++) {
-        const role = roles[i];
-        serverRoles.set(role.id, role);
-    }
+    const
+        serverRoles = member.server.roles,
+        roles = member.roles;
     
-    roles = member.roles;
     for(let i = 0; i < roles.length; i++) {
         const role = serverRoles.get(roles[i]);
         if(role && CheckPermission(role.permissions, flag))
@@ -758,12 +754,21 @@ const CheckSpam = async message => {
     return true;
 };
 
+const GenRolesMap = roles => {
+    const map = new Map();
+    for(let i = 0; i < roles.length; i++) {
+        const role = roles[i];
+        map.set(role.id, role);
+    }
+    return map;
+};
+
 const AddServer = async server => {
     const serverInfo = await serversDb.findOne({ _id: server.id });
     ConnectedServers.set(server.id, {
         id: server.id,
         name: server.name,
-        roles: server.roles,
+        roles: GenRolesMap(server.roles),
         member_count: server.member_count,
         icon: server.icon,
         owner_id: server.owner_id,
@@ -774,7 +779,7 @@ const AddServer = async server => {
 
 const UpdateServer = (server, update) => {
     server.name = update.name;
-    server.roles = update.roles;
+    server.roles = GenRolesMap(update.roles);
     server.icon = update.icon;
     server.owner_id = update.owner_id;
 };
@@ -888,33 +893,17 @@ const events = {
     
     GUILD_ROLE_CREATE: async data => {
         const server = ConnectedServers.get(data.guild_id);
-        server && server.roles.push(data.role);
+        server && server.roles.set(data.role.id, data.role);
     },
     
     GUILD_ROLE_UPDATE: async data => {
         const server = ConnectedServers.get(data.guild_id);
-        if(!server)
-            return;
-        
-        const
-            id = data.role.id,
-            index = server.roles.findIndex(role => role && (role.id == id));
-        
-        if(index > -1)
-            server.roles[index] = data.role;
+        server && server.roles.set(data.role.id, data.role);
     },
     
     GUILD_ROLE_DELETE: async data => {
         const server = ConnectedServers.get(data.guild_id);
-        if(!server)
-            return;
-        
-        const
-            id = data.role_id,
-            index = server.roles.findIndex(role => role && (role.id == id));
-        
-        if(index > -1)
-            server.roles[index] = null;
+        server && server.roles.delete(data.role_id);
     },
 };
 
