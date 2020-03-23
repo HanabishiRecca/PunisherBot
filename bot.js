@@ -10,15 +10,12 @@ const Shutdown = err => {
     process.exit(1);
 };
 
-if(!process.env.TOKEN)
-    Shutdown('Token required.');
+!process.env.TOKEN && Shutdown('Token required.');
 
 const storagePath = process.env.STORAGE;
-if(!storagePath)
-    Shutdown('Storage path required.');
+!storagePath && Shutdown('Storage path required.');
 
-if(global.gc)
-    setInterval(global.gc, 3600000);
+global.gc && setInterval(global.gc, 3600000);
 
 const
     Database = require('nedb-promise'),
@@ -39,8 +36,7 @@ const StatusTracker = require('http').createServer((_, res) => res.end('ONLINE')
 
 client.on('connect', () => {
     console.log('Connection established.');
-    if(!StatusTracker.listening)
-        StatusTracker.listen(21240);
+    !StatusTracker.listening && StatusTracker.listen(21240);
 });
 client.on('disconnect', code => {
     console.error(`Disconnect. (${code})`);
@@ -396,10 +392,7 @@ const botCommands = {
         await serversDb.update({ _id: message.server.id }, { $set: { strict } }, { upsert: true });
         message.server.strict = strict;
         
-        if(strict)
-            message.reply('строгий режим включен. **Баны будут выдаваться без предупреждения.**', true);
-        else
-            message.reply('строгий режим отключен.', true);
+        message.reply(strict ? 'строгий режим включен. **Баны будут выдаваться без предупреждения.**' : 'строгий режим отключен.', true);
     },
     
     ban: async message => {
@@ -853,9 +846,8 @@ const events = {
         if(!server.name)
             return;
         
-        const
-            notify = !ConnectedServers.has(server.id),
-            connected = await AddServer(server);
+        const notify = !ConnectedServers.has(server.id);
+        AddServer(server);
         
         notify && ServiceLog(`**Подключен новый сервер!**\n${ServerToText(server)}\nВладелец: ${UserMention(server.owner_id)}`);
         
