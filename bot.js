@@ -759,22 +759,24 @@ const CheckSpam = async message => {
 };
 
 const AddServer = async server => {
-    const
-        serverInfo = await serversDb.findOne({ _id: server.id }),
-        connected = {
-            id: server.id,
-            name: server.name,
-            roles: server.roles,
-            member_count: server.member_count,
-            icon: server.icon,
-            owner_id: server.owner_id,
-            trusted: serverInfo && serverInfo.trusted,
-            strict: serverInfo && serverInfo.strict,
-        };
-    
-    ConnectedServers.set(server.id, connected);
-    
-    return connected;
+    const serverInfo = await serversDb.findOne({ _id: server.id });
+    ConnectedServers.set(server.id, {
+        id: server.id,
+        name: server.name,
+        roles: server.roles,
+        member_count: server.member_count,
+        icon: server.icon,
+        owner_id: server.owner_id,
+        trusted: serverInfo && serverInfo.trusted,
+        strict: serverInfo && serverInfo.strict,
+    });
+};
+
+const UpdateServer = (server, update) => {
+    server.name = update.name;
+    server.roles = update.roles;
+    server.icon = update.icon;
+    server.owner_id = update.owner_id;
 };
 
 const events = {
@@ -846,22 +848,28 @@ const events = {
         if(!server.name)
             return;
         
-        const notify = !ConnectedServers.has(server.id);
+        !ConnectedServers.has(server.id) && ServiceLog(`**Подключен новый сервер!**\n${ServerToText(server)}\nВладелец: ${UserMention(server.owner_id)}`);
         AddServer(server);
-        
-        notify && ServiceLog(`**Подключен новый сервер!**\n${ServerToText(server)}\nВладелец: ${UserMention(server.owner_id)}`);
-        
         PushServerList();
     },
     
-    GUILD_UPDATE: async server => {
-        if(!server.name)
+    GUILD_UPDATE: async update => {
+        if(!update.name)
             return;
         
-        const sobj = ConnectedServers.get(server.id);
-        sobj.name = server.name;
-        sobj.roles = server.roles;
-        sobj.icon = server.icon;
+        const server = ConnectedServers.get(update.id);
+        if(server) {
+            if(server.name != update.name) {
+                ServiceLog(`**Изменено название сервера** (${update.id})\n\`${server.name}\` → \`${update.name}\``);
+            } else if(server.owner_id != update.owner_id) {
+                ServiceLog(`**Изменен владелец сервера** (${update.id})\n${UserMention(server.owner_id)} → ${UserMention(update.owner_id)}`);
+            }
+            UpdateServer(server, update);
+        } else {
+            console.warn('Update event: server mismatch.');
+            AddServer(update);
+        }
+        
         PushServerList();
     },
     
