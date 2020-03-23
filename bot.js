@@ -873,14 +873,48 @@ const events = {
         PushServerList();
     },
     
-    GUILD_DELETE: async server => {
-        const sobj = ConnectedServers.get(server.id);
-        if(!sobj)
+    GUILD_DELETE: async deleted => {
+        if(deleted.unavailable)
             return;
         
-        ConnectedServers.delete(server.id);
-        ServiceLog(`**Сервер отключен**\n${ServerToText(sobj)}`);
+        const server = ConnectedServers.get(deleted.id);
+        if(!server)
+            return;
+        
+        ConnectedServers.delete(deleted.id);
+        ServiceLog(`**Сервер отключен**\n${ServerToText(server)}`);
         PushServerList();
+    },
+    
+    GUILD_ROLE_CREATE: async data => {
+        const server = ConnectedServers.get(data.guild_id);
+        server && server.roles.push(data.role);
+    },
+    
+    GUILD_ROLE_UPDATE: async data => {
+        const server = ConnectedServers.get(data.guild_id);
+        if(!server)
+            return;
+        
+        const
+            id = data.role.id,
+            index = server.roles.findIndex(role => role && (role.id == id));
+        
+        if(index > -1)
+            server.roles[index] = data.role;
+    },
+    
+    GUILD_ROLE_DELETE: async data => {
+        const server = ConnectedServers.get(data.guild_id);
+        if(!server)
+            return;
+        
+        const
+            id = data.role_id,
+            index = server.roles.findIndex(role => role && (role.id == id));
+        
+        if(index > -1)
+            server.roles[index] = null;
     },
 };
 
