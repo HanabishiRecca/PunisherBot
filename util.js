@@ -18,12 +18,12 @@ exports.GetInviteCodes = str => {
     const
         result = [],
         regExp = /discord(?:app\s*\.\s*com\s*\/\s*invite|\s*\.\s*gg(?:\s*\/\s*invite)?)\s*\/\s*([\w-]{2,255})/ig;
-    
+
     let match;
     while(match = regExp.exec(str))
         if(match.length > 1)
             result.push(match[1]);
-    
+
     return result;
 }
 
@@ -31,12 +31,12 @@ exports.GetNewsTags = str => {
     const
         result = [],
         regExp = /\$(\w+)/ig;
-    
+
     let match;
     while(match = regExp.exec(str))
         if(match.length > 1)
             result.push(match[1]);
-    
+
     return result;
 }
 

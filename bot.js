@@ -80,19 +80,16 @@ const
     UserToText = user => `${UserMention(user)} (${UserTag(user)})`;
 
 const HasPermission = (member, flag) => {
-    if(!member.roles.length)
-        return false;
-    
     const
         serverRoles = member.server.roles,
         roles = member.roles;
-    
+
     for(let i = 0; i < roles.length; i++) {
         const role = serverRoles.get(roles[i]);
         if(role && CheckPermission(role.permissions, flag))
             return true;
     }
-    
+
     return false;
 };
 
@@ -104,7 +101,7 @@ const
 const TryBan = async (server, user, reason) => {
     if(await SafePromise(BanUser(server, user, reason)))
         return true;
-    
+
     await Notify(server, `Не удалось забанить пользователя ${UserToText(user)}!`);
     return false;
 };
@@ -112,7 +109,7 @@ const TryBan = async (server, user, reason) => {
 const TryUnban = async (server, user) => {
     if(await SafePromise(UnbanUser(server, user)))
         return true;
-    
+
     await Notify(server, `Не удалось разбанить пользователя ${UserToText(user)}!`);
     return false;
 };
@@ -121,7 +118,7 @@ const SendInfo = async (server, msg) => {
     const serverInfo = await serversDb.findOne({ _id: server.id });
     if(!(serverInfo && serverInfo.channel))
         return;
-    
+
     if(!(await SafePromise(SendMessage(serverInfo.channel, msg))))
         ServiceLog(`На сервере ${ServerToText(server)} не удалось отправить сообщение в сервисный канал!`);
 };
@@ -142,22 +139,22 @@ const SendNews = async (tag, content, embed) => {
     const
         channels = new Set(),
         hooks = await hooksDb.find({});
-    
+
     hooks.forEach(async hookInfo => {
         const hook = await SafePromise(GetWebhook(hookInfo._id, hookInfo.token));
         if(!hook)
             return await hooksDb.remove({ _id: hookInfo._id });
-        
+
         if(channels.has(hook.channel_id))
             return;
-        
+
         if(hookInfo.tags && hookInfo.tags.length && (hookInfo.tags.indexOf(tag) < 0))
             return;
-        
+
         const cat = await categoriesDb.findOne({ _id: tag });
         if(!cat)
             return;
-        
+
         SendWebhookMessage(hookInfo._id, hookInfo.token, cat.name || client.user.username, cat.avatar || client.user.avatarURL, content || '', embed);
         channels.add(hook.channel_id);
     });
@@ -166,11 +163,11 @@ const SendNews = async (tag, content, embed) => {
 const PushServerList = async () => {
     if(!process.env.WEB_DIR)
         return;
-    
+
     for(const server of ConnectedServers.values())
         if(!server.name)
             return;
-    
+
     const output = [];
     for(const server of ConnectedServers.values())
         output.push({
@@ -180,26 +177,26 @@ const PushServerList = async () => {
             image: server.icon,
             trusted: server.trusted,
         });
-    
+
     fs.writeFileSync(`${process.env.WEB_DIR}/servers.json`, JSON.stringify(output));
 };
 
 const PushBlacklist = async () => {
     if(!process.env.WEB_DIR)
         return;
-    
+
     const
         bans = await GetBans(config.mainServer),
         output = [];
-    
+
     for(let i = 0; i < bans.length; i++) {
         const
             banInfo = bans[i],
             userInfo = await blacklistDb.findOne({ _id: banInfo.user.id });
-        
+
         if(!userInfo)
             continue;
-        
+
         output.push({
             id: banInfo.user.id,
             username: banInfo.user.username,
@@ -208,7 +205,7 @@ const PushBlacklist = async () => {
             reason: userInfo.reason,
         });
     }
-    
+
     fs.writeFileSync(`${process.env.WEB_DIR}/blacklist.json`, JSON.stringify(output));
 };
 
@@ -216,23 +213,23 @@ setInterval(PushBlacklist, 3600000);
 
 const
     headerHelp = `**Информационная панель бота**\n${config.panelUrl}`,
-    
+
     userHelp = `**Команды пользователя**
 \`link\` - показать ссылку на приглашение бота.
 \`info @user\` - показать информацию об указанном пользователе.
 \`help\` - показать данное справочное сообщение.`,
-    
+
     moderHelp = `**Команды модератора**
 \`stats\` - показать количество серверов и банов.
 \`blacklist\` - показать список всех пользователей в черном списке.
 \`serverlist\` - показать список всех подключенных серверов.`,
-    
+
     adminHelp = `**Команды администратора**
 \`channel #канал\` - установка канала для информационных сообщений бота. Если канал не указан, параметр будет очищен.
 \`subscribe $tag\` - подписаться на категории с указанными тегами. Если теги не указаны, будет осуществлена подписка на все категории.
 \`tags\` - показать список всех доступных новостных категорий.
 \`strict\` - включить/отключить строгий режим.`,
-    
+
     serviceHelp = `**Сервисные команды**
 \`ban @user причина\` - добавить указанного пользователя в черный список с указанием причины.
 \`unban @user\` - убрать указанного пользователя из черного списка.
@@ -248,7 +245,7 @@ const botCommands = {
     channel: async message => {
         if(!IsAdmin(message.member))
             return;
-        
+
         const channelId = Util.GetFirstChannelMention(message.content);
         if(channelId) {
             if(await SafePromise(SendMessage(channelId, 'Канал установлен.')))
@@ -260,16 +257,16 @@ const botCommands = {
             message.reply('канал сброшен.', true);
         }
     },
-    
+
     info: async message => {
         const userId = Util.GetFirstUserMention(message.content);
         if(!userId)
             return;
-        
+
         const user = await SafePromise(GetUser(userId));
         if(!user)
             return message.reply(UserNotExist(userId), true);
-        
+
         const userInfo = await blacklistDb.findOne({ _id: user.id });
         SendMessage(message.channel_id, '', {
             description: UserTag(user),
@@ -279,21 +276,21 @@ const botCommands = {
             ],
         });
     },
-    
+
     blacklist: async message => {
         if(!IsModer(message.member))
             return;
-        
+
         const bans = await GetBans(config.mainServer);
         let text = `**Черный список**\nВсего: ${await blacklistDb.count({})}\n\`\`\`cs\n`;
         for(let i = 0; i < bans.length; i++) {
             const
                 banInfo = bans[i],
                 userInfo = await blacklistDb.findOne({ _id: banInfo.user.id });
-            
+
             if(!userInfo)
                 continue;
-            
+
             const add = `${banInfo.user.id} → ${Util.ReplaceApostrophe(banInfo.user.username)}#${banInfo.user.discriminator}\n`;
             if(text.length + add.length < 1990) {
                 text += add;
@@ -304,28 +301,28 @@ const botCommands = {
         }
         message.reply(text + '\n```');
     },
-    
+
     stats: async message => {
         if(!IsModer(message.member))
             return;
-        
+
         message.reply(`**Статистика**\nПользователей в черном списке: ${await blacklistDb.count({})}\nПодключено серверов: ${ConnectedServers.size}`);
     },
-    
+
     serverlist: async message => {
         if(!IsModer(message.member))
             return;
-        
+
         const servers = [...ConnectedServers.values()];
         servers.sort((a, b) => (a.id > b.id) ? 1 : -1);
-        
+
         let text = `**Список серверов**\nПодключено: ${ConnectedServers.size}\n\`\`\`css\n`;
         for(let i = 0; i < servers.length; i++) {
             const
                 server = servers[i],
                 serverInfo = await serversDb.findOne({ _id: server.id }),
                 add = `${server.id} [${(serverInfo && serverInfo.trusted) ? 'T' : ' '}] ${server.name}\n`;
-            
+
             if(text.length + add.length < 1990) {
                 text += add;
             } else {
@@ -335,38 +332,38 @@ const botCommands = {
         }
         message.reply(text + '\n```');
     },
-    
+
     link: async message => message.reply(`<https://discordapp.com/oauth2/authorize?client_id=${client.user.id}&permissions=${config.permissions}&scope=bot>`, true),
-    
+
     help: async message => {
         let text = `**Справка**\n\n${headerHelp}\n\n${userHelp}\n\n`;
-        
+
         if(IsModer(message.member))
             text += `${moderHelp}\n\n`;
-        
+
         if(IsAdmin(message.member))
             text += `${adminHelp}\n\n`;
-        
+
         if((message.server.id == config.mainServer) && IsAdmin(message.member))
             text += `${serviceHelp}\n\n`;
-        
+
         message.reply(text);
     },
-    
+
     invites: async message => {
         const invites = await SafePromise(GetServerInvites(message.server.id));
         if(!invites)
             return message.reply('команда не разрешена.', true);
-        
+
         invites.sort((a, b) => b.uses - a.uses);
         const maxLen = (invites.length > 0) ? invites[0].uses.toString().length : 0;
-        
+
         let text = `**Текущие инвайты**\nВсего: ${invites.length}\n\`\`\`py\n`;
         for(let i = 0; i < invites.length; i++) {
             const
                 invite = invites[i],
                 add = `${invite.code.padEnd(7)} | ${invite.uses.toString().padEnd(maxLen)} | ${invite.inviter.username}#${invite.inviter.discriminator}\n`;
-            
+
             if(text.length + add.length < 1990) {
                 text += add;
             } else {
@@ -376,113 +373,113 @@ const botCommands = {
         }
         message.reply(text + '\n```');
     },
-    
+
     strict: async message => {
         if(!IsAdmin(message.member))
             return;
-        
+
         const
             serverInfo = await serversDb.findOne({ _id: message.server.id }),
             strict = serverInfo ? !serverInfo.strict : true;
-        
+
         await serversDb.update({ _id: message.server.id }, { $set: { strict } }, { upsert: true });
         message.server.strict = strict;
-        
+
         message.reply(strict ? 'строгий режим включен. **Баны будут выдаваться без предупреждения.**' : 'строгий режим отключен.', true);
     },
-    
+
     ban: async message => {
         if(!((message.server.id == config.mainServer) && IsAdmin(message.member)))
             return;
-        
+
         const userId = Util.GetFirstUserMention(message.content);
         if(!userId)
             return;
-        
+
         const user = await SafePromise(GetUser(userId));
         if(!user)
             return message.reply(UserNotExist(userId), true);
-        
+
         if(user.id == client.user.id)
             return message.reply(':(', true);
-        
+
         const reason = Util.RemoveMentions(message.content).trim();
         await blacklistDb.update({ _id: user.id }, { $set: { server: message.server.id, moder: message.author.id, date: Date.now(), reason: reason } }, { upsert: true });
         await TryBan(message.server, user, reason);
-        
+
         message.reply(`пользователь ${UserToText(user)} добавлен в черный список.`, true);
-        
+
         for(const server of ConnectedServers.values())
             if(server.id != message.server.id)
                 await TryBan(server, user, reason);
-        
+
         PushBlacklist();
     },
-    
+
     unban: async message => {
         if(!((message.server.id == config.mainServer) && IsAdmin(message.member)))
             return;
-        
+
         const userId = Util.GetFirstUserMention(message.content);
         if(!userId)
             return;
-        
+
         const user = await SafePromise(GetUser(userId));
         if(!user)
             return message.reply(UserNotExist(userId), true);
-        
+
         if(!(await blacklistDb.findOne({ _id: user.id })))
             return message.reply(`пользователь ${UserToText(user)} не находится в черном списке.`, true);
-        
+
         await blacklistDb.remove({ _id: user.id });
         await TryUnban(message.server, user);
-        
+
         message.reply(`пользователь ${UserToText(user)} удален из черного списка.`, true);
-        
+
         for(const server of ConnectedServers.values())
             if(server.id != message.server.id)
                 await TryUnban(server, user);
-        
+
         PushBlacklist();
     },
-    
+
     trust: async message => {
         if(!((message.server.id == config.mainServer) && IsAdmin(message.member)))
             return;
-        
+
         const match = message.content.match(/[0-9]+/);
         if(!match)
             return;
-        
+
         const
             serverId = match[0],
             server = ConnectedServers.get(serverId);
-        
+
         if(!server)
             return message.reply(`сервер с идентификатором \`${serverId}\` не подключен.`, true);
-        
+
         await serversDb.update({ _id: serverId }, { $set: { trusted: true } }, { upsert: true });
         server.trusted = true;
         message.reply(`сервер ${ServerToText(server)} добавлен в список доверенных.`, true);
-        
+
         PushServerList();
     },
-    
+
     untrust: async message => {
         if(!((message.server.id == config.mainServer) && IsAdmin(message.member)))
             return;
-        
+
         const match = message.content.match(/[0-9]+/);
         if(!match)
             return;
-        
+
         const
             serverId = match[0],
             server = ConnectedServers.get(serverId);
-        
+
         if(!(await serversDb.findOne({ _id: serverId })))
             return message.reply('указанный сервер отсутствует в списке доверенных.', true);
-        
+
         await serversDb.update({ _id: serverId }, { $unset: { trusted: true } });
         if(server) {
             server.trusted = false;
@@ -490,103 +487,103 @@ const botCommands = {
         } else {
             message.reply(`идентификатор \`${serverId}\` удален из списка доверенных.`);
         }
-        
+
         PushServerList();
     },
-    
+
     subscribe: async message => {
         if(!IsAdmin(message.member))
             return;
-        
+
         const
             match = Util.GetNewsTags(message.content),
             tags = [];
-        
+
         for(let i = 0; i < match.length; i++) {
             const
                 tag = match[i].toLowerCase(),
                 cat = await categoriesDb.findOne({ _id: tag });
-            
+
             if(cat)
                 tags.push(tag);
             else
                 return message.reply(TagNotExist(tag), true);
         }
-        
+
         const
             name = `Новости (${tags.length ? tags.join(', ') : 'все'})`,
             webhook = await SafePromise(CreateWebhook(message.channel_id, name));
-        
+
         if(!webhook)
             return message.reply('не удалось создать вебхук.', true);
-        
+
         await hooksDb.insert({ _id: webhook.id, token: webhook.token, tags: (tags.length ? tags : undefined) });
         message.reply(`в текущем канале создана подписка на \`${name}\`.`, true);
     },
-    
+
     post: async message => {
         if(!((message.server.id == config.mainServer) && IsAdmin(message.member)))
             return;
-        
+
         const jsonIndex = message.content.indexOf('{');
         if(jsonIndex < 0)
             return message.reply('в сообщении не найден JSON.', true);
-        
+
         const obj = Util.ParseJSON(message.content.substring(jsonIndex));
         if(!obj)
             return message.reply('некорректный JSON.', true);
-        
+
         if(!(await SafePromise(SendMessage(message.channel_id, obj.content || '', obj.embed))))
             return message.reply('не удалось отправить проверочное сообщение.', true);
-        
+
         const match = Util.GetFirstNewsTag(message.content);
         if(!match)
             return;
-        
+
         const
             tag = match.toLowerCase(),
             cat = await categoriesDb.findOne({ _id: tag });
-        
+
         if(!cat)
             return message.reply(TagNotExist(tag), true);
-        
+
         SendNews(tag, obj.content, obj.embed);
     },
-    
+
     tags: async message => {
         if(!IsAdmin(message.member))
             return;
-        
+
         const categories = await categoriesDb.find({});
         let text = '**Список категорий**\n\n';
         for(let i = 0; i < categories.length; i++) {
             const cat = categories[i];
             text += `\`${cat._id}\` - ${cat.name || client.user.username}\n`;
         }
-        
+
         message.reply(text);
     },
-    
+
     hooks: async message => {
         if(!((message.server.id == config.mainServer) && IsAdmin(message.member)))
             return;
-        
+
         const hooks = await hooksDb.find({});
         let text = `**Активные подписки**\n\n`;
         for(let i = 0; i < hooks.length; i++) {
             const
                 hookInfo = hooks[i],
                 hook = await SafePromise(GetWebhook(hookInfo._id, hookInfo.token));
-            
+
             if(!hook) {
                 await hooksDb.remove({ _id: hookInfo._id });
                 continue;
             }
-            
+
             const
                 server = ConnectedServers.get(hook.guild_id),
                 add = `${server ? ServerToText(server) : hook.guild_id} | ${hookInfo.tags ? `[${hookInfo.tags.join(', ')}]` : 'все' }\n`;
-            
+
             if(text.length + add.length < 1990) {
                 text += add;
             } else {
@@ -594,79 +591,79 @@ const botCommands = {
                 text = add;
             }
         }
-        
+
         message.reply(text);
     },
-    
+
     addcat: async message => {
         if(!((message.server.id == config.mainServer) && IsAdmin(message.member)))
             return;
-        
+
         const jsonIndex = message.content.indexOf('{');
         if(jsonIndex < 0)
             return message.reply('в сообщении не найден JSON.', true);
-        
+
         const obj = Util.ParseJSON(message.content.substring(jsonIndex));
         if(!obj)
             return message.reply('некорректный JSON.', true);
-        
+
         if(typeof(obj.tag) != 'string')
             return message.reply('необходимо указать тег категории.', true);
-        
+
         const data = {};
         if(typeof(obj.name) == 'string')
             data.name = obj.name;
-        
+
         if(typeof(obj.avatar) == 'string')
             data.avatar = obj.avatar;
-        
+
         await categoriesDb.update({ _id: obj.tag }, { $set: data }, { upsert: true });
-        
+
         message.reply(`категория \`${obj.tag}\` добавлена.`, true);
     },
-    
+
     removecat: async message => {
         if(!((message.server.id == config.mainServer) && IsAdmin(message.member)))
             return;
-        
+
         const match = Util.GetFirstNewsTag(message.content);
         if(!match)
             return message.reply('необходимо указать категорию для удаления.', true);
-        
+
         const
             tag = match.toLowerCase(),
             cat = await categoriesDb.findOne({ _id: tag });
-        
+
         if(!cat)
             return message.reply(TagNotExist(tag), true);
-        
+
         await categoriesDb.remove({ _id: tag });
-        
+
         message.reply(`категория \`${tag}\` удалена.`, true);
     },
-    
+
     dumpcat: async message => {
         if(!((message.server.id == config.mainServer) && IsAdmin(message.member)))
             return;
-        
+
         const match = Util.GetFirstNewsTag(message.content);
         if(!match)
             return message.reply('необходимо указать категорию .', true);
-        
+
         const
             tag = match.toLowerCase(),
             cat = await categoriesDb.findOne({ _id: tag });
-        
+
         if(!cat)
             return message.reply(TagNotExist(tag), true);
-        
+
         const obj = { tag };
         if(cat.name)
             obj.name = cat.name;
-        
+
         if(cat.avatar)
             obj.avatar = cat.avatar;
-        
+
         message.reply(JSON.stringify(obj, null, 4));
     },
 };
@@ -675,54 +672,54 @@ const CheckBanned = async member => {
     const userInfo = await blacklistDb.findOne({ _id: member.user.id });
     if(!userInfo)
         return false;
-    
+
     if(await TryBan(member.server, member.user, userInfo.reason))
         Notify(member.server, `Пользователю ${UserToText(member.user)} из черного списка выдан автоматический бан!\n\`${userInfo.reason}\``);
-    
+
     return true;
 };
 
 const CheckSpam = async message => {
     if(message.author.id == message.server.owner_id)
         return false;
-    
+
     if(message.author.bot)
         return false;
-    
+
     if(message.member.roles.length)
         return false;
-    
+
     const codes = Util.GetInviteCodes(message.content);
     if(!codes.length)
         return false;
-    
+
     let white = 0;
     for(let i = 0; i < codes.length; i++) {
         const invite = await SafePromise(GetInvite(codes[i]));
         if(!invite)
             break;
-        
+
         if(invite.guild.id == message.server.id) {
             white++;
             continue;
         }
-        
+
         const serverInfo = await serversDb.findOne({ _id: invite.guild.id });
         if(serverInfo && serverInfo.trusted) {
             white++;
             continue;
         }
-        
+
         break;
     }
-    
+
     if(white == codes.length)
         return false;
-    
+
     const
         server = message.server,
         user = message.author;
-    
+
     if(new Date(message.member.joined_at).getTime() < Date.now() - config.banJoinPeriod) {
         if(message.server.strict || SuspiciousUsers.has(user.id)) {
             TryDeleteMessage(message);
@@ -740,7 +737,7 @@ const CheckSpam = async message => {
                 SuspiciousUsers.delete(user.id);
             else
                 TryDeleteMessage(message);
-            
+
             await TryBan(config.mainServer, user, reason);
             PushBlacklist();
         } else {
@@ -750,7 +747,7 @@ const CheckSpam = async message => {
             SendPM(user, '**Предупреждение**\nВаши действия распознаны как спам. Повторная попытка приведет к бану.');
         }
     }
-    
+
     return true;
 };
 
@@ -788,80 +785,80 @@ const events = {
     READY: async data => {
         client.user = data.user;
         client.WsSend({ op: 3, d: { status: { web: 'online' }, game: { name: `${config.prefix}help`, type: 3 }, afk: false, since: 0 } });
-        
+
         ConnectedServers.clear();
-        
+
         const servers = data.guilds;
         for(let i = 0; i < servers.length; i++) {
             const server = servers[i];
             ConnectedServers.set(server.id, server);
         }
-        
+
         console.log('READY');
     },
-    
+
     MESSAGE_CREATE: async message => {
         if(!(message.content && message.guild_id && message.member))
             return;
-        
+
         if(message.author.id == client.user.id)
             return;
-        
+
         message.server = message.member.server = ConnectedServers.get(message.guild_id);
         message.member.user = message.author;
         message.reply = (content, mention) => SendMessage(message.channel_id, mention ? `${UserMention(message.author)}, ${content}` : content);
-        
+
         if(await CheckBanned(message.member))
             return;
-        
+
         if(await CheckSpam(message))
             return;
-        
+
         if(message.content.substring(0, config.prefix.length).toLowerCase() != config.prefix)
             return;
-        
+
         const
             si = message.content.search(/(\s|\n|$)/),
             command = message.content.substring(config.prefix.length, (si > 0) ? si : undefined).toLowerCase();
-        
+
         if(!(command && botCommands.hasOwnProperty(command)))
             return;
-        
+
         message.content = message.content.substring((si > 0) ? (si + 1) : '');
         botCommands[command](message);
-        
+
         console.log(`COMMAND (${command}) SERVER (${message.server.id}) USER (${message.author.id})`);
     },
-    
+
     GUILD_MEMBER_ADD: async member => {
         member.server = ConnectedServers.get(member.guild_id);
         member.server.member_count++;
         CheckBanned(member);
         PushServerList();
     },
-    
+
     GUILD_MEMBER_REMOVE: async member => {
         const server = ConnectedServers.get(member.guild_id);
         if(!server)
             return;
-        
+
         server.member_count--;
         PushServerList();
     },
-    
+
     GUILD_CREATE: async server => {
         if(!server.name)
             return;
-        
+
         !ConnectedServers.has(server.id) && ServiceLog(`**Подключен новый сервер!**\n${ServerToText(server)}\nВладелец: ${UserMention(server.owner_id)}`);
         AddServer(server);
         PushServerList();
     },
-    
+
     GUILD_UPDATE: async update => {
         if(!update.name)
             return;
-        
+
         const server = ConnectedServers.get(update.id);
         if(server) {
             if(server.name != update.name) {
@@ -874,33 +871,33 @@ const events = {
             console.warn('Update event: server mismatch.');
             AddServer(update);
         }
-        
+
         PushServerList();
     },
-    
+
     GUILD_DELETE: async deleted => {
         if(deleted.unavailable)
             return;
-        
+
         const server = ConnectedServers.get(deleted.id);
         if(!server)
             return;
-        
+
         ConnectedServers.delete(deleted.id);
         ServiceLog(`**Сервер отключен**\n${ServerToText(server)}`);
         PushServerList();
     },
-    
+
     GUILD_ROLE_CREATE: async data => {
         const server = ConnectedServers.get(data.guild_id);
         server && server.roles.set(data.role.id, data.role);
     },
-    
+
     GUILD_ROLE_UPDATE: async data => {
         const server = ConnectedServers.get(data.guild_id);
         server && server.roles.set(data.role.id, data.role);
     },
-    
+
     GUILD_ROLE_DELETE: async data => {
         const server = ConnectedServers.get(data.guild_id);
         server && server.roles.delete(data.role_id);
