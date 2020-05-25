@@ -106,13 +106,7 @@ const TryBan = async (server, user, reason) => {
     return false;
 };
 
-const TryUnban = async (server, user) => {
-    if(await SafePromise(UnbanUser(server, user)))
-        return true;
-
-    await Notify(server, `Не удалось разбанить пользователя ${UserToText(user)}!`);
-    return false;
-};
+const TryUnban = (server, user) => SafePromise(UnbanUser(server, user));
 
 const SendInfo = async (server, msg) => {
     const serverInfo = await serversDb.findOne({ _id: server.id });
