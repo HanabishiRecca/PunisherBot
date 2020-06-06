@@ -904,4 +904,4 @@ client.on('packet', async packet => {
 });
 
 client.Auth(process.env.TOKEN);
-client.Connect();
+client.Connect(false, Discord.Intents.GUILDS | Discord.Intents.GUILD_MEMBERS | Discord.Intents.GUILD_MESSAGES);
