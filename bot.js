@@ -19,7 +19,7 @@ global.gc && setInterval(global.gc, 3600000);
 
 const
     Database = require('nedb-promise'),
-    Discord = require('discordlite'),
+    Discord = require('discord-slim'),
     Util = require('./util.js'),
     config = require('./config.json'),
     fs = require('fs');
@@ -904,4 +904,4 @@ client.on('packet', async packet => {
 });
 
 client.Auth(process.env.TOKEN);
-client.Connect(false, Discord.Intents.GUILDS | Discord.Intents.GUILD_MEMBERS | Discord.Intents.GUILD_MESSAGES);
+client.Connect(Discord.Intents.GUILDS | Discord.Intents.GUILD_MEMBERS | Discord.Intents.GUILD_MESSAGES);
