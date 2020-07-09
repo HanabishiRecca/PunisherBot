@@ -42,8 +42,9 @@ client.on('disconnect', code => {
     console.error(`Disconnect. (${code})`);
     StatusTracker.close();
 });
-client.on('error', console.error);
 client.on('warn', console.warn);
+client.on('error', console.error);
+client.on('fatal', Shutdown);
 
 const
     Routes = Discord.Routes,
