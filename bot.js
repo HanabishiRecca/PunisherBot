@@ -100,14 +100,26 @@ const
     ServiceLog = msg => SendMessage(config.serviceChannel, msg);
 
 const TryBan = async (server, user, reason) => {
-    if(await SafePromise(BanUser(server, user, reason)))
-        return true;
-
-    await Notify(server, `Не удалось забанить пользователя ${UserToText(user)}!`);
-    return false;
+    try {
+        await BanUser(server, user, reason);
+    } catch(e) {
+        if(e.code == 403)
+            await Notify(server, `Недостаточно прав чтобы забанить пользователя ${UserToText(user)}!`);
+        return false;
+    }
+    return true;
 };
 
-const TryUnban = (server, user) => SafePromise(UnbanUser(server, user));
+const TryUnban = async (server, user) => {
+    try {
+        await UnbanUser(server, user);
+    } catch(e) {
+        if(e.code == 403)
+            await Notify(server, `Недостаточно прав чтобы разбанить пользователя ${UserToText(user)}!`);
+        return false;
+    }
+    return true;
+};
 
 const SendInfo = async (server, msg) => {
     const serverInfo = await serversDb.findOne({ _id: server.id });
