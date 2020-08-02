@@ -71,7 +71,7 @@ const
     CheckPermission = (permissions, flag) => ((permissions & Permissions.ADMINISTRATOR) > 0) || ((permissions & flag) === flag),
     MessageContent = str => `**Содержимое сообщения**\`\`\`${str}\`\`\``,
     MessageUrl = (server, channel, message) => `${Discord.Host}/channels/${server.id || server}/${channel.id || channel}/${message.id || message}`,
-    NoAvatar = discriminator => `${Discord.CDN}/embed/avatars/${parseInt(discriminator)%5}.png`,
+    NoAvatar = discriminator => `${Discord.CDN}/embed/avatars/${parseInt(discriminator) % 5}.png`,
     ServerToText = server => `\`${server.name}\` (${server.id})`,
     TagNotExist = tag => `тег \`${tag}\` не существует.`,
     UserAvatar = user => `${Discord.CDN}/avatars/${user.id}/${user.avatar}`,
@@ -589,7 +589,7 @@ const botCommands = {
 
             const
                 server = ConnectedServers.get(hook.guild_id),
-                add = `${server ? ServerToText(server) : hook.guild_id} | ${hookInfo.tags ? `[${hookInfo.tags.join(', ')}]` : 'все' }\n`;
+                add = `${server ? ServerToText(server) : hook.guild_id} | ${hookInfo.tags ? `[${hookInfo.tags.join(', ')}]` : 'все'}\n`;
 
             if(text.length + add.length < 1990) {
                 text += add;
@@ -614,14 +614,14 @@ const botCommands = {
         if(!obj)
             return message.reply('некорректный JSON.', true);
 
-        if(typeof(obj.tag) != 'string')
+        if(typeof obj.tag != 'string')
             return message.reply('необходимо указать тег категории.', true);
 
         const data = {};
-        if(typeof(obj.name) == 'string')
+        if(typeof obj.name == 'string')
             data.name = obj.name;
 
-        if(typeof(obj.avatar) == 'string')
+        if(typeof obj.avatar == 'string')
             data.avatar = obj.avatar;
 
         await categoriesDb.update({ _id: obj.tag }, { $set: data }, { upsert: true });
