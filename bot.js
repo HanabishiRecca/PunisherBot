@@ -81,6 +81,9 @@ const
     UserToText = user => `${UserMention(user)} (${UserTag(user)})`;
 
 const HasPermission = (member, flag) => {
+    if(member.user.id == member.server.owner_id)
+        return true;
+
     const
         serverRoles = member.server.roles,
         roles = member.roles;
