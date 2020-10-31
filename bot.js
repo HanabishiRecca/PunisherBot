@@ -51,7 +51,7 @@ const
     Permissions = Discord.Permissions,
     ConnectedServers = new Map(),
     SuspiciousUsers = new Map(),
-    SafePromise = promise => new Promise(resolve => promise.then(result => resolve(result)).catch(() => resolve(null)));
+    SafePromise = promise => new Promise(resolve => promise.then(result => resolve(result)).catch(error => { console.warn(error); resolve(null); }));
 
 const
     BanUser = (server, user, reason) => client.Request('put', `${Routes.Server(server)}/bans/${user.id || user}?delete-message-days=1&reason=${encodeURI(reason)}`),
