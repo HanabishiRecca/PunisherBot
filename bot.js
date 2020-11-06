@@ -736,6 +736,8 @@ const CheckSpam = async message => {
             clearTimeout(SuspiciousUsers.get(user.id));
             Notify(server, `Злоупотребление инвайтами от пользователя ${UserToText(user)}.\n\n${MessageContent(message.content)}`);
             SendPM(user, `**Предупреждение**\nОбнаружено злоупотребление инвайтами.`);
+        } else {
+            Notify(server, `Подозрительное сообщение от пользователя ${UserToText(user)}.\nСтрогий режим не включен, поэтому пока просто следим.\n\n${MessageUrl(message.server, message.channel_id, message)}`);
         }
         SuspiciousUsers.set(user.id, setTimeout(() => SuspiciousUsers.delete(user.id), config.suspiciousTimeout));
     } else {
