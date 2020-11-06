@@ -139,8 +139,11 @@ const Notify = (server, msg) => {
 };
 
 const TryDeleteMessage = async message => {
-    if(!(await SafePromise(DeleteMessage(message))))
-        Notify(message.server, `**Не удалось удалить сообщение!**\n${MessageUrl(message.server, message.channel_id, message)}`);
+    try {
+        await DeleteMessage(message);
+    } catch(e) {
+        Notify(message.server, `**Не удалось удалить сообщение!**\n${e.code} ${e.message}\n\n${MessageUrl(message.server, message.channel_id, message)}`);
+    }
 };
 
 const SendPM = async (user, msg) => await SafePromise(SendMessage(await GetUserChannel(user), msg));
