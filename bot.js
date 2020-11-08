@@ -134,7 +134,8 @@ const SendInfo = async (server, msg) => {
 };
 
 const Notify = (server, msg) => {
-    ServiceLog(`**Сервер:** ${ServerToText(server)}\n**Событие:**\n${msg}`);
+    if(server.id != config.mainServer)
+        ServiceLog(`**Сервер:** ${ServerToText(server)}\n**Событие:**\n${msg}`);
     SendInfo(server, msg);
 };
 
