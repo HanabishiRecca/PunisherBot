@@ -106,8 +106,7 @@ const TryBan = async (server, user, reason) => {
     try {
         await BanUser(server, user, reason);
     } catch(e) {
-        if(e.code == 403)
-            await Notify(server, `Недостаточно прав чтобы забанить пользователя ${UserToText(user)}!`);
+        await Notify(server, `Не удалось забанить пользователя ${UserToText(user)}!\n${e.code} ${e.message}`);
         return false;
     }
     return true;
@@ -117,8 +116,7 @@ const TryUnban = async (server, user) => {
     try {
         await UnbanUser(server, user);
     } catch(e) {
-        if(e.code == 403)
-            await Notify(server, `Недостаточно прав чтобы разбанить пользователя ${UserToText(user)}!`);
+        await Notify(server, `Не удалось разбанить пользователя ${UserToText(user)}!\n${e.code} ${e.message}`);
         return false;
     }
     return true;
@@ -129,8 +127,11 @@ const SendInfo = async (server, msg) => {
     if(!(serverInfo && serverInfo.channel))
         return;
 
-    if(!(await SafePromise(SendMessage(serverInfo.channel, msg))))
-        ServiceLog(`На сервере ${ServerToText(server)} не удалось отправить сообщение в сервисный канал!`);
+    try {
+        await SendMessage(serverInfo.channel, msg);
+    } catch(e) {
+        ServiceLog(`На сервере ${ServerToText(server)} не удалось отправить сообщение в сервисный канал!\n${e.code} ${e.message}`);
+    }
 };
 
 const Notify = (server, msg) => {
@@ -262,10 +263,13 @@ const botCommands = {
 
         const channelId = Util.GetFirstChannelMention(message.content);
         if(channelId) {
-            if(await SafePromise(SendMessage(channelId, 'Канал установлен.')))
-                await serversDb.update({ _id: message.server.id }, { $set: { channel: channelId } }, { upsert: true });
-            else
-                message.reply('нет доступа к указанному каналу!', true);
+            try {
+                await SendMessage(channelId, 'Канал установлен.');
+            } catch(e) {
+                message.reply(`нет доступа к указанному каналу!\n${e.code} ${e.message}`, true);
+                return;
+            }
+            await serversDb.update({ _id: message.server.id }, { $set: { channel: channelId } }, { upsert: true });
         } else {
             await serversDb.update({ _id: message.server.id }, { $unset: { channel: true } });
             message.reply('канал сброшен.', true);
@@ -524,12 +528,14 @@ const botCommands = {
                 return message.reply(TagNotExist(tag), true);
         }
 
-        const
-            name = `Новости (${tags.length ? tags.join(', ') : 'все'})`,
-            webhook = await SafePromise(CreateWebhook(message.channel_id, name));
+        const name = `Новости (${tags.length ? tags.join(', ') : 'все'})`;
 
-        if(!webhook)
-            return message.reply('не удалось создать вебхук.', true);
+        let webhook;
+        try {
+            webhook = await CreateWebhook(message.channel_id, name);
+        } catch(e) {
+            return message.reply(`не удалось создать вебхук.\n${e.code} ${e.message}`, true);
+        }
 
         await hooksDb.insert({ _id: webhook.id, token: webhook.token, tags: (tags.length ? tags : undefined) });
         message.reply(`в текущем канале создана подписка на \`${name}\`.`, true);
@@ -547,8 +553,11 @@ const botCommands = {
         if(!obj)
             return message.reply('некорректный JSON.', true);
 
-        if(!(await SafePromise(SendMessage(message.channel_id, obj.content || '', obj.embed))))
-            return message.reply('не удалось отправить проверочное сообщение.', true);
+        try {
+            await SendMessage(message.channel_id, obj.content || '', obj.embed);
+        } catch(e) {
+            return message.reply(`не удалось отправить проверочное сообщение.\n${e.code} ${e.message}`, true);
+        }
 
         const match = Util.GetFirstNewsTag(message.content);
         if(!match)
