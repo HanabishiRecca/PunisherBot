@@ -8,7 +8,7 @@
     "license": "MIT",
     "main": "bot.js",
     "dependencies": {
-        "discord-slim": "^1.1.3",
+        "discord-slim": "^1.1.4",
         "nedb-promise": "^2.0.1"
     }
 }
