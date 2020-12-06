@@ -117,6 +117,7 @@ const TryUnban = async (server, user) => {
     try {
         await UnbanUser(server, user);
     } catch(e) {
+        if(e.code == 404) return true;
         await Notify(server, `Не удалось разбанить пользователя ${UserToText(user)}!\n${e.code} ${e.message}`);
         return false;
     }
