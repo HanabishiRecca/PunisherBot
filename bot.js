@@ -159,8 +159,11 @@ const SendNews = async (tag, content, embed) => {
 
     hooks.forEach(async hookInfo => {
         const hook = await SafePromise(GetWebhook(hookInfo._id, hookInfo.token));
-        if(!hook)
-            return await hooksDb.remove({ _id: hookInfo._id });
+        if(!hook) {
+            hooksDb.remove({ _id: hookInfo._id });
+            hooksDb.persistence.compactDatafile();
+            return;
+        }
 
         if(channels.has(hook.channel_id))
             return;
@@ -276,6 +279,7 @@ const botCommands = {
             await serversDb.update({ _id: message.server.id }, { $unset: { channel: true } });
             message.reply('канал сброшен.', true);
         }
+        serversDb.persistence.compactDatafile();
     },
 
     info: async message => {
@@ -403,6 +407,7 @@ const botCommands = {
             strict = serverInfo ? !serverInfo.strict : true;
 
         await serversDb.update({ _id: message.server.id }, { $set: { strict } }, { upsert: true });
+        serversDb.persistence.compactDatafile();
         message.server.strict = strict;
 
         message.reply(strict ? 'строгий режим включен. **Баны будут выдаваться без предупреждения.**' : 'строгий режим отключен.', true);
@@ -425,6 +430,7 @@ const botCommands = {
 
         const reason = Util.RemoveMentions(message.content).trim();
         await blacklistDb.update({ _id: user.id }, { $set: { server: message.server.id, moder: message.author.id, date: Date.now(), reason: reason } }, { upsert: true });
+        blacklistDb.persistence.compactDatafile();
         await TryBan(message.server, user, reason);
 
         message.reply(`пользователь ${UserToText(user)} добавлен в черный список.`, true);
@@ -452,6 +458,7 @@ const botCommands = {
             return message.reply(`пользователь ${UserToText(user)} не находится в черном списке.`, true);
 
         await blacklistDb.remove({ _id: user.id });
+        blacklistDb.persistence.compactDatafile();
         await TryUnban(message.server, user);
 
         message.reply(`пользователь ${UserToText(user)} удален из черного списка.`, true);
@@ -479,6 +486,7 @@ const botCommands = {
             return message.reply(`сервер с идентификатором \`${serverId}\` не подключен.`, true);
 
         await serversDb.update({ _id: serverId }, { $set: { trusted: true } }, { upsert: true });
+        serversDb.persistence.compactDatafile();
         server.trusted = true;
         message.reply(`сервер ${ServerToText(server)} добавлен в список доверенных.`, true);
 
@@ -501,6 +509,7 @@ const botCommands = {
             return message.reply('указанный сервер отсутствует в списке доверенных.', true);
 
         await serversDb.update({ _id: serverId }, { $unset: { trusted: true } });
+        serversDb.persistence.compactDatafile();
         if(server) {
             server.trusted = false;
             message.reply(`сервер ${ServerToText(server)} удален из списка доверенных.`);
@@ -540,6 +549,7 @@ const botCommands = {
         }
 
         await hooksDb.insert({ _id: webhook.id, token: webhook.token, tags: (tags.length ? tags : undefined) });
+        hooksDb.persistence.compactDatafile();
         message.reply(`в текущем канале создана подписка на \`${name}\`.`, true);
     },
 
@@ -594,7 +604,7 @@ const botCommands = {
             return;
 
         const hooks = await hooksDb.find({});
-        let text = `**Активные подписки**\n\n`;
+        let text = `**Активные подписки**\n\n`, changes = false;
         for(let i = 0; i < hooks.length; i++) {
             const
                 hookInfo = hooks[i],
@@ -602,6 +612,7 @@ const botCommands = {
 
             if(!hook) {
                 await hooksDb.remove({ _id: hookInfo._id });
+                changes = true;
                 continue;
             }
 
@@ -617,6 +628,7 @@ const botCommands = {
             }
         }
 
+        changes && hooksDb.persistence.compactDatafile();
         message.reply(text);
     },
 
@@ -643,6 +655,7 @@ const botCommands = {
             data.avatar = obj.avatar;
 
         await categoriesDb.update({ _id: obj.tag }, { $set: data }, { upsert: true });
+        categoriesDb.persistence.compactDatafile();
 
         message.reply(`категория \`${obj.tag}\` добавлена.`, true);
     },
@@ -663,6 +676,7 @@ const botCommands = {
             return message.reply(TagNotExist(tag), true);
 
         await categoriesDb.remove({ _id: tag });
+        categoriesDb.persistence.compactDatafile();
 
         message.reply(`категория \`${tag}\` удалена.`, true);
     },
@@ -759,6 +773,7 @@ const CheckSpam = async message => {
         if(message.server.strict || SuspiciousUsers.has(user.id)) {
             const reason = '[Авто-бан] Спам инвайтов';
             await blacklistDb.insert({ _id: user.id, server: server.id, moder: client.user.id, date: Date.now(), reason });
+            blacklistDb.persistence.compactDatafile();
             Notify(server, `Пользователь ${UserToText(user)} автоматически добавлен в черный список по причине спама.\n\n${MessageContent(message.content)}`);
             if(await TryBan(server, user, reason))
                 SuspiciousUsers.delete(user.id);
